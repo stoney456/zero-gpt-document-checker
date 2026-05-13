@@ -1,0 +1,34 @@
+AI Plagiarism Analysis
+File ID: 1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60
+Generated: 2026-05-13 11:35:48 SGT
+============================================================
+
+### Analysis of Collaborative Document Text
+
+---
+
+#### **User: foowinston7523**
+
+**1. AI Plagiarism Percentage:** 0%
+
+**2. Analysis:**
+The text provided by this user shows no characteristics of Large Language Model (LLM) generation. AI-generated text, even when prompted to be "random," typically adheres to linguistic patterns, grammatical structures, or a specific "predictable" randomness. This user’s input consists of three distinct human behaviors: simple word association/listing, high-entropy "keyboard smashing" (gibberish), and the use of a standard pangram. The gibberish, in particular, contains irregular punctuation (semicolons and commas placed mid-sequence) and a lack of phonetic structure that is characteristic of a human hitting keys at random. The pangram "The quick brown fox..." is a common tool used by humans to test fonts or typing, not a sign of AI generation in this context.
+
+**3. Specific Excerpts:**
+*   *"Me1:apple, Me1: bee, Me1: cook"* — **Human-written:** This looks like a user participating in a structured word game or testing the document's ability to handle lists.
+*   *"Vii shd ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj"* — **Human-written:** This is classic "keyboard smashing." The inclusion of semicolons and the erratic flow of vowels and consonants indicate a human finger moving randomly across a physical keyboard.
+*   *"The quick brown fox jumps over the lazy dog."* — **Human-written:** While this is a standard sentence, in the context of the surrounding chaos, it functions as a "test sentence" used by humans to check text rendering.
+
+---
+
+#### **User: notwins4056**
+
+**1. AI Plagiarism Percentage:** 0%
+
+**2. Analysis:**
+This user’s contribution is entirely non-linguistic or extremely minimal. AI models are designed to generate coherent or semi-coherent language. While an AI *can* be prompted to repeat a single letter, it is highly inefficient and contrary to the "instruction-following" nature of an LLM. The content consists of "spamming"—the act of holding down a single key to produce long strings of identical characters. This is a common behavior in collaborative documents (like Google Docs) when users are idling or "trolling." The single factual sentence at the end lacks the introductory or concluding "fluff" typically found in AI-generated responses.
+
+**3. Specific Excerpts:**
+*   *"Asesedufououaedf aaaaaaaaaaaaaaaaa..."* — **Human-written:** This demonstrates "spamming" behavior. The transition from a random string to a long repetitive sequence of 'a's is a hallmark of a human testing the limits of a text field.
+*   *"Bbbbbbbbbbbbbbbbbbbbbbbbbbbbb..."* — **Human-written:** A repetitive block of a single character is a non-intelligent, mechanical action performed by a human holding down a key.
+*   *"Today is the 7th of May"* — **Human-written:** A simple, context-free statement of fact. It lacks the syntactical complexity or conversational tone of an AI.

@@ -53,25 +53,24 @@ input[type="text"]:focus {
 
 /* Styling the button */
 .arrow-btn {
-    height: 46px; /* Matches the total height of the input */
     width: 46px;
-    margin-left: 8px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-
-    /* Centering the icon inside the button */
+    height: 46px;
+    padding: 0;          /* Removes default browser padding */
+    border: 0;           /* Removes default border which adds extra pixels */
+    border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    vertical-align: middle;
+    box-sizing: border-box; /* Ensures padding/border don't grow the size */
+    
+    /* Keep your existing colors and transitions */
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
 }
 
 .arrow-btn:hover {
-    background-color: #0056b3;
+    background-color: #bcc2c8;
     transform: scale(1.05);
 }
 

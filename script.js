@@ -24,8 +24,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/documents.readonly",
 ];
 
-// ─── SGT HELPERS ─────────────────────────────────────────────────────────────
-
+// Convert ISO timestamp to Singapore Time (SGT)
 function toSGT(isoString) {
   if (!isoString) return null;
   const sgtMs = new Date(isoString).getTime() + 8 * 60 * 60 * 1000;
@@ -36,7 +35,7 @@ function toSGT(isoString) {
 
 function nowSGT() { return toSGT(new Date().toISOString()); }
 
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
+// Authenticate using service account or application default credentials
 
 async function getAuthClient() {
   const serviceAccountPath = path.join(__dirname, "service-account.json");
@@ -120,7 +119,7 @@ function buildRevisionCSV(revisions, fileId, generatedAt) {
   return [meta, header, ...rows].join("\n");
 }
 
-// ─── AI PLAGIARISM ANALYSIS ───────────────────────────────────────────────────
+// AI Plagiarism Analysis using LLM
 
 async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
 
@@ -350,7 +349,6 @@ Examples:
   }
 }
 
-const geminiKey = "AIzaSyD6SRyDUm25WpBlqVcANaBSq29s7YxCSTM";
 main().catch((err) => {
   console.error("\n❌ Fatal error:", err.message);
   process.exit(1);
