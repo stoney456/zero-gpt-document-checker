@@ -1,0 +1,28 @@
+AI Plagiarism Analysis
+File ID: 1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60
+Generated: 2026-05-19 13:52:52 SGT
+============================================================
+
+User: **foowinston7523**
+
+AI Plagiarism Percentage: **1% (low)**
+
+Analysis: **The content consists of disconnected word lists, nonsensical keyboard smashing, and a standard typing test pangram, which are all characteristic of human experimentation or testing.**
+
+Specific Excerpts: 
+Excerpt 1: "Vii shd ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj"
+Explanation: **This is a clear example of human keyboard mashing, which lacks the semantic structure or predictive patterns used by AI.**
+Excerpt 2: "The quick brown fox jumps over the lazy dog."
+Explanation: **This is a well-known human pangram used for testing typing speed and keyboard functionality.**
+
+User: **notwins4056**
+
+AI Plagiarism Percentage: **1% (low)**
+
+Analysis: **The text includes repetitive character sequences and a highly specific, self-referential sentence about testing document versioning, indicating human intent.**
+
+Specific Excerpts: 
+Excerpt 1: "Today is the 13th of May, and I am typing this text to continue testing on my Test Versioning Google Document."
+Explanation: **The use of highly context-specific and meta-descriptive language regarding the user's own testing process is a strong indicator of human authorship.**
+Excerpt 2: "Asesedufououaedf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+Explanation: **The rhythmic repetition of a single character is a common human technique for testing character counts and document formatting.**

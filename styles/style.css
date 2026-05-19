@@ -1,83 +1,25 @@
-/* Center the container on the whole page */
-body {
-    margin: 0;
-    display: flex;
-    
-    height: 100vh;
-    background-color: #f4f4f9;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-#front-page-container {
-    background: white;
-    padding: 3rem;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    text-align: center;
-
-    /* THE FIX: Use flexbox on the container itself */
-    display: flex;
-    flex-direction: column; /* Stack H1, P, and the Input row vertically */
-    align-items: center;    /* Center everything horizontally */
-    justify-content: center;
-}
-
-h1 {
-    margin-bottom: 0.5rem;
-    color: #333;
-}
-
-p {
-    margin-bottom: 1.5rem;
-    color: #666;
-}
-
-/* Styling the input */
-input[type="text"] {
-    padding: 12px 15px;
-    width: 320px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    outline: none;
-    transition: border-color 0.3s;
-    
-    /* Ensures it stays on the same line as the button if there is room */
-    display: inline-block; 
-    vertical-align: middle;
-}
-
-input[type="text"]:focus {
-    border-color: #007bff;
-}
-
-/* Styling the button */
-.arrow-btn {
-    width: 46px;
-    height: 46px;
-    padding: 0;          /* Removes default browser padding */
-    border: 0;           /* Removes default border which adds extra pixels */
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box; /* Ensures padding/border don't grow the size */
-    
-    /* Keep your existing colors and transitions */
-    background-color: #007bff;
+#start-button {
+    background-color: #4CAF50;
+    border: none;
     color: white;
+    /* Reduced padding so it doesn't crush the image inside a small 50px width */
+    padding: 10px; 
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin-top: 20px;
     cursor: pointer;
+    border-radius: 5px;
+    width: 40px;
+    height: 40px; /* Optional: Making it square usually looks better for icon buttons */
+    box-sizing: border-box; /* Ensures padding doesn't push width past 50px */
 }
 
-.arrow-btn:hover {
-    background-color: #bcc2c8;
-    transform: scale(1.05);
-}
-
-.arrow-btn i {
-    font-size: 18px;
-}
-
-#download-page-container {
-    text-align:center
+/* The magic fix: Target the image inside the button */
+#start-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Keeps the arrow from distorting or stretching */
+    display: block;      /* Removes weird extra bottom spacing images sometimes get */
 }

@@ -182,6 +182,77 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     plt.close()
     print(f"  ✅ Line chart saved → {output_path}")
 
+# ── LINE CHART BY REVISION ───────────────────────────────────────────────────
+
+def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
+    df = revisions_df.copy()
+    df[col]              = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    df["Name"]           = df["Name"].fillna("Unknown")
+    df["Revision Index"] = pd.to_numeric(df["Revision Index"], errors="coerce")
+
+    users      = df["Name"].unique().tolist()
+    max_rev    = int(df["Revision Index"].max())
+    all_revs   = list(range(1, max_rev + 1))
+    palette    = sns.color_palette("tab10", len(users))
+
+    records = []
+    for user in users:
+        user_rows = (
+            df[df["Name"] == user]
+            .set_index("Revision Index")
+        )
+        # Anchor all users at revision 0 with cumulative 0
+        records.append({"Revision": 0, "User": user, "Cumulative": 0})
+
+        cumulative = 0
+        for rev in all_revs:
+            if rev in user_rows.index:
+                val = user_rows.loc[rev, col]
+                cumulative += float(val) if not hasattr(val, "__len__") else float(val.iloc[0])
+            records.append({"Revision": rev, "User": user, "Cumulative": cumulative})
+
+    long_df = pd.DataFrame(records).sort_values("Revision")
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+
+    sns.lineplot(
+        data=long_df,
+        x="Revision",
+        y="Cumulative",
+        hue="User",
+        palette=palette,
+        linewidth=2,
+        marker="o",
+        markersize=5,
+        ax=ax,
+    )
+
+    # Shaded fill under each line
+    for i, user in enumerate(users):
+        user_data = long_df[long_df["User"] == user].sort_values("Revision")
+        ax.fill_between(user_data["Revision"], user_data["Cumulative"],
+                        alpha=0.08, color=palette[i])
+
+    ax.set_xlim(-0.5, max_rev + 0.5)
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.set_xlabel("Revision Number", labelpad=8)
+    ax.set_ylabel(ylabel, labelpad=8)
+    ax.set_title(title, pad=16)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
+    ax.axhline(0, color="grey", linewidth=0.8, linestyle="--")
+
+    if len(users) > 4:
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=9)
+    else:
+        ax.legend(loc="upper left", fontsize=9)
+
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  ✅ Revision chart saved → {output_path}")
+
+
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -219,16 +290,22 @@ Examples:
     print(f"   {len(summary_df)} users found in summary")
     print(f"   {len(revisions_df)} revisions found\n")
 
-    pie_path       = os.path.join(args.output, "contribution-pie.png")
-    words_line_path = os.path.join(args.output, "contribution-line-networds.png")
-    chars_line_path = os.path.join(args.output, "contribution-line-netchars.png")
+    pie_path            = os.path.join(args.output, "contribution-pie.png")
+    words_line_path     = os.path.join(args.output, "contribution-line-networds.png")
+    chars_line_path     = os.path.join(args.output, "contribution-line-netchars.png")
+    words_rev_path      = os.path.join(args.output, "contribution-revision-networds.png")
+    chars_rev_path      = os.path.join(args.output, "contribution-revision-netchars.png")
 
     print("🎨 Generating charts...")
     plot_pie(summary_df, pie_path)
     plot_line(revisions_df, "Net Words", "Progressive Net Word Contribution Over Time",
               "Cumulative Net Words", words_line_path)
-    plot_line(revisions_df, "Net Chars",  "Progressive Net Character Contribution Over Time",
+    plot_line(revisions_df, "Net Chars", "Progressive Net Character Contribution Over Time",
               "Cumulative Net Characters", chars_line_path)
+    plot_line_by_revision(revisions_df, "Net Words", "Net Word Contribution by Revision",
+              "Cumulative Net Words", words_rev_path)
+    plot_line_by_revision(revisions_df, "Net Chars", "Net Character Contribution by Revision",
+              "Cumulative Net Characters", chars_rev_path)
 
     print(f"\n✅ Done! Charts saved to: {os.path.abspath(args.output)}")
 

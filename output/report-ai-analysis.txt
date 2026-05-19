@@ -1,0 +1,30 @@
+AI Plagiarism Analysis
+File ID: 1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60
+Generated: 2026-05-19 14:41:07 SGT
+============================================================
+
+User: foowinston7523
+
+**AI Plagiarism Percentage:** **5% (low)**
+
+**Analysis:** **The text consists of disconnected word lists, extensive keyboard smashing, and a standard pangram, all of which are typical of a human user testing the input and formatting capabilities of a collaborative document.**
+
+**Specific Excerpts:**
+**Excerpt 1:** "The quick brown fox jumps over the lazy dog."
+**Explanation:** **This is a standard manual typing test sentence used to verify font and keyboard functionality, not a sign of generative AI.**
+**Excerpt 2:** "Vii shd ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj"
+**Explanation:** **This sequence is characteristic of human-generated keyboard smashing, which lacks the structured, probabilistic patterns of an AI model.**
+
+---
+
+User: notwins4056
+
+**AI Plagiarism Percentage:** **5% (low)**
+
+**Analysis:** **The content is dominated by repetitive character strings used for stress testing, followed by a highly specific, functional sentence that describes a human's meta-testing objectives for the document.**
+
+**Specific Excerpts:**
+**Excerpt 1:** "Today is the 7th of May Today is the 13th of May, and I am typing this text to continue testing on my Test Versioning Google Document."
+**Explanation:** **The repetition of dates in a non-sequitur manner suggests a human user manually editing the text to observe how version history captures changes.**
+**Excerpt 2:** "I also aim to see the changes to net word count and net character counts."
+**Explanation:** **This is a direct, goal-oriented statement of intent common in manual software and document testing.**

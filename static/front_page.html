@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Contribution</title>
+    <link rel="stylesheet" href="/styles/style.css">
+
+    <script src="/main.js" defer></script>
+</head>
+<body>
+    <img src="/assets/logo.png" id="logo-image">
+    <h1 id="front-page-header">User Contribution And AI Tracker</h1>
+    <div id="front-page-container">  
+        
+        <p>Insert Google document link here:</p>
+        <input type="text" id="doc-url" placeholder="https://docs.google.com/document/d/...">
+        
+        <!-- Field for Gemini API Key if passed from front-end -->
+        <input type="text" id="gemini-key" style="display: none;">
+
+        <button id='start-button'>
+            <img src='/assets/arrow.png'></img>
+        </button>
+
+        <div id="status-text">Ready to run analysis.</div>
+    </div>
+
+</body>
+</html>

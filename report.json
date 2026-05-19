@@ -1,8 +1,8 @@
 {
   "fileId": "1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60",
-  "generatedAt": "2026-05-13 11:35:48 SGT",
+  "generatedAt": "2026-05-15 18:06:36 SGT",
   "timezone": "Asia/Singapore (UTC+8)",
-  "totalRevisions": 8,
+  "totalRevisions": 9,
   "userSummary": [
     {
       "name": "foowinston7523",
@@ -18,13 +18,13 @@
     {
       "name": "notwins4056",
       "email": "notwins4056@gmail.com",
-      "revisionsCount": 4,
-      "totalWordsAdded": 11,
+      "revisionsCount": 5,
+      "totalWordsAdded": 47,
       "totalWordsRemoved": 7,
-      "totalCharsAdded": 653,
+      "totalCharsAdded": 837,
       "totalCharsRemoved": 194,
       "firstEditSGT": "2026-04-29 15:28:17 SGT",
-      "lastEditSGT": "2026-05-13 11:16:49 SGT"
+      "lastEditSGT": "2026-05-13 21:07:19 SGT"
     }
   ],
   "revisions": [
@@ -229,6 +229,31 @@
           "charsAdded": 0,
           "charsRemoved": 30,
           "netWords": -5
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 9,
+      "revisionId": "365",
+      "modifiedTime": "2026-05-13T13:07:19.737Z",
+      "modifiedTimeSGT": "2026-05-13 21:07:19 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Today is the 13th of May, and I am typing this text to continue testing on my Test Versioning Google Document. I also aim to see the changes to net word count and net character counts."
+        ],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 36,
+          "wordsRemoved": 0,
+          "charsAdded": 184,
+          "charsRemoved": 0,
+          "netWords": 36
         }
       },
       "hasChanges": true

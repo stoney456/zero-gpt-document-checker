@@ -1,34 +1,30 @@
 AI Plagiarism Analysis
 File ID: 1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60
-Generated: 2026-05-13 11:35:48 SGT
+Generated: 2026-05-15 18:06:36 SGT
 ============================================================
 
-### Analysis of Collaborative Document Text
+User: foowinston7523
+
+AI Plagiarism Percentage: 0% (low)
+
+Analysis: **The text is composed of fragmented word lists, non-semantic keyboard mashing, and a standard typing pangram. This pattern is highly indicative of a human user performing casual testing or "playing" with the document rather than an AI generating structured, prompted content.**
+
+Specific Excerpts (give 2-3 examples, don't state the exact line numbers but quote the text verbatim in double quotes): 
+Excerpt 1: "apple bee cook"
+Explanation: **This is a sequence of disconnected nouns and verbs lacking any grammatical or logical cohesion typical of AI-generated language.**
+Excerpt 2: "Vii shd ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj"
+Explanation: **This is pure keyboard mashing, a non-semantic string of characters produced by human tactile input, which is not a pattern seen in AI-generated text.**
 
 ---
 
-#### **User: foowinston7523**
+User: notwins4056
 
-**1. AI Plagiarism Percentage:** 0%
+AI Plagiarism Percentage: 0% (low)
 
-**2. Analysis:**
-The text provided by this user shows no characteristics of Large Language Model (LLM) generation. AI-generated text, even when prompted to be "random," typically adheres to linguistic patterns, grammatical structures, or a specific "predictable" randomness. This user’s input consists of three distinct human behaviors: simple word association/listing, high-entropy "keyboard smashing" (gibberish), and the use of a standard pangram. The gibberish, in particular, contains irregular punctuation (semicolons and commas placed mid-sequence) and a lack of phonetic structure that is characteristic of a human hitting keys at random. The pangram "The quick brown fox..." is a common tool used by humans to test fonts or typing, not a sign of AI generation in this context.
+Analysis: **The content consists of repetitive character strings and a direct, first-person explanation of the user's testing intent. The explicit mention of monitoring character counts confirms the manual, human-driven nature of the input.**
 
-**3. Specific Excerpts:**
-*   *"Me1:apple, Me1: bee, Me1: cook"* — **Human-written:** This looks like a user participating in a structured word game or testing the document's ability to handle lists.
-*   *"Vii shd ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj"* — **Human-written:** This is classic "keyboard smashing." The inclusion of semicolons and the erratic flow of vowels and consonants indicate a human finger moving randomly across a physical keyboard.
-*   *"The quick brown fox jumps over the lazy dog."* — **Human-written:** While this is a standard sentence, in the context of the surrounding chaos, it functions as a "test sentence" used by humans to check text rendering.
-
----
-
-#### **User: notwins4056**
-
-**1. AI Plagiarism Percentage:** 0%
-
-**2. Analysis:**
-This user’s contribution is entirely non-linguistic or extremely minimal. AI models are designed to generate coherent or semi-coherent language. While an AI *can* be prompted to repeat a single letter, it is highly inefficient and contrary to the "instruction-following" nature of an LLM. The content consists of "spamming"—the act of holding down a single key to produce long strings of identical characters. This is a common behavior in collaborative documents (like Google Docs) when users are idling or "trolling." The single factual sentence at the end lacks the introductory or concluding "fluff" typically found in AI-generated responses.
-
-**3. Specific Excerpts:**
-*   *"Asesedufououaedf aaaaaaaaaaaaaaaaa..."* — **Human-written:** This demonstrates "spamming" behavior. The transition from a random string to a long repetitive sequence of 'a's is a hallmark of a human testing the limits of a text field.
-*   *"Bbbbbbbbbbbbbbbbbbbbbbbbbbbbb..."* — **Human-written:** A repetitive block of a single character is a non-intelligent, mechanical action performed by a human holding down a key.
-*   *"Today is the 7th of May"* — **Human-written:** A simple, context-free statement of fact. It lacks the syntactical complexity or conversational tone of an AI.
+Specific Excerpts (give 2-3 examples, don't state the exact line numbers but quote the text verbatim in double quotes): 
+Excerpt 1: "Today is the 7th of May Today is the 13th of May, and I am typing this text to continue testing on my Test Versioning Google Document."
+Explanation: **The phrasing is conversational and functional, explicitly describing human-led testing intentions and real-world activity.**
+Excerpt 2: "Asesedufououaedf aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+Explanation: **The use of repeated single characters is a manual method used by humans to test character count increments and string limits.**

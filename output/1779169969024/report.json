@@ -1,0 +1,262 @@
+{
+  "fileId": "1gHz8Ln68mKcRcxuR09BFgkMwqVLiBkQcUl8l3rvL-60",
+  "generatedAt": "2026-05-19 13:52:52 SGT",
+  "timezone": "Asia/Singapore (UTC+8)",
+  "totalRevisions": 9,
+  "userSummary": [
+    {
+      "name": "foowinston7523",
+      "email": "foowinston7523@gmail.com",
+      "revisionsCount": 4,
+      "totalWordsAdded": 38,
+      "totalWordsRemoved": 1,
+      "totalCharsAdded": 506,
+      "totalCharsRemoved": 162,
+      "firstEditSGT": "2026-04-28 11:52:14 SGT",
+      "lastEditSGT": "2026-05-07 10:00:31 SGT"
+    },
+    {
+      "name": "notwins4056",
+      "email": "notwins4056@gmail.com",
+      "revisionsCount": 5,
+      "totalWordsAdded": 47,
+      "totalWordsRemoved": 7,
+      "totalCharsAdded": 837,
+      "totalCharsRemoved": 194,
+      "firstEditSGT": "2026-04-29 15:28:17 SGT",
+      "lastEditSGT": "2026-05-13 21:07:19 SGT"
+    }
+  ],
+  "revisions": [
+    {
+      "revisionIndex": 1,
+      "revisionId": "1",
+      "modifiedTime": "2026-04-28T03:52:14.524Z",
+      "modifiedTimeSGT": "2026-04-28 11:52:14 SGT",
+      "modifiedBy": {
+        "name": "foowinston7523",
+        "email": "foowinston7523@gmail.com"
+      },
+      "isFirstRevision": true,
+      "diff": {
+        "added": [],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 0,
+          "wordsRemoved": 0,
+          "charsAdded": 0,
+          "charsRemoved": 0,
+          "netWords": 0
+        }
+      },
+      "hasChanges": false
+    },
+    {
+      "revisionIndex": 2,
+      "revisionId": "114",
+      "modifiedTime": "2026-04-28T04:22:31.253Z",
+      "modifiedTimeSGT": "2026-04-28 12:22:31 SGT",
+      "modifiedBy": {
+        "name": "foowinston7523",
+        "email": "foowinston7523@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Me1:apple  \nMe1: bee\nMe1: cook\n\n\n\n\n\n\n\n\n\n\nMe2: deer\nMe2: elephant\nMe2: fat\n\n\n\n\nMe3: ghost\nMe4: happy\nMe5: ink\n\n\n\n\n\n\nMe: July\nMe: Kangaroo\nMe: Lemon\n\n\nVii shd"
+        ],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 25,
+          "wordsRemoved": 0,
+          "charsAdded": 156,
+          "charsRemoved": 0,
+          "netWords": 25
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 3,
+      "revisionId": "160",
+      "modifiedTime": "2026-04-28T14:01:56.483Z",
+      "modifiedTimeSGT": "2026-04-28 22:01:56 SGT",
+      "modifiedBy": {
+        "name": "foowinston7523",
+        "email": "foowinston7523@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "ssroudhfohoaihefobgoawefoih;ihawef;ohbohaoihj;arg;ohj\n\n\n\n\n\n\nSdhfojaefhojaefo;uaegio;aef;puaegong\nasesedufououaedf;puawerpuaogup;auaewofughaou"
+        ],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 3,
+          "wordsRemoved": 0,
+          "charsAdded": 141,
+          "charsRemoved": 0,
+          "netWords": 3
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 4,
+      "revisionId": "175",
+      "modifiedTime": "2026-04-29T07:28:17.602Z",
+      "modifiedTimeSGT": "2026-04-29 15:28:17 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Asesedufououaedf",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        "removed": [
+          "asesedufououaedf"
+        ],
+        "stats": {
+          "wordsAdded": 2,
+          "wordsRemoved": 1,
+          "charsAdded": 164,
+          "charsRemoved": 16,
+          "netWords": 1
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 5,
+      "revisionId": "209",
+      "modifiedTime": "2026-04-30T02:39:32.191Z",
+      "modifiedTimeSGT": "2026-04-30 10:39:32 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n\n\nBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\n\n\n\n\n\ncccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "removed": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        "stats": {
+          "wordsAdded": 3,
+          "wordsRemoved": 1,
+          "charsAdded": 466,
+          "charsRemoved": 148,
+          "netWords": 2
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 6,
+      "revisionId": "242",
+      "modifiedTime": "2026-05-07T02:00:31.206Z",
+      "modifiedTimeSGT": "2026-05-07 10:00:31 SGT",
+      "modifiedBy": {
+        "name": "foowinston7523",
+        "email": "foowinston7523@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n\n\nThe quick brown fox jumps over the lazy dog."
+        ],
+        "removed": [
+          "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "stats": {
+          "wordsAdded": 10,
+          "wordsRemoved": 1,
+          "charsAdded": 209,
+          "charsRemoved": 162,
+          "netWords": 9
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 7,
+      "revisionId": "272",
+      "modifiedTime": "2026-05-07T03:52:52.499Z",
+      "modifiedTimeSGT": "2026-05-07 11:52:52 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Today is the 7th of May"
+        ],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 6,
+          "wordsRemoved": 0,
+          "charsAdded": 23,
+          "charsRemoved": 0,
+          "netWords": 6
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 8,
+      "revisionId": "279",
+      "modifiedTime": "2026-05-13T03:16:49.904Z",
+      "modifiedTimeSGT": "2026-05-13 11:16:49 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [],
+        "removed": [
+          "Me1:apple  \nMe1: bee\nMe1: cook"
+        ],
+        "stats": {
+          "wordsAdded": 0,
+          "wordsRemoved": 5,
+          "charsAdded": 0,
+          "charsRemoved": 30,
+          "netWords": -5
+        }
+      },
+      "hasChanges": true
+    },
+    {
+      "revisionIndex": 9,
+      "revisionId": "365",
+      "modifiedTime": "2026-05-13T13:07:19.737Z",
+      "modifiedTimeSGT": "2026-05-13 21:07:19 SGT",
+      "modifiedBy": {
+        "name": "notwins4056",
+        "email": "notwins4056@gmail.com"
+      },
+      "isFirstRevision": false,
+      "diff": {
+        "added": [
+          "Today is the 13th of May, and I am typing this text to continue testing on my Test Versioning Google Document. I also aim to see the changes to net word count and net character counts."
+        ],
+        "removed": [],
+        "stats": {
+          "wordsAdded": 36,
+          "wordsRemoved": 0,
+          "charsAdded": 184,
+          "charsRemoved": 0,
+          "netWords": 36
+        }
+      },
+      "hasChanges": true
+    }
+  ]
+}
