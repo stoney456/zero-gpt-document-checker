@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Contribution</title>
+    <title>User Contribution & AI Tracker</title>
     <link rel="stylesheet" href="/styles/style.css">
 
     <script src="/main.js" defer></script>
@@ -11,15 +11,18 @@
 <body>
     <img src="/assets/logo.png" id="logo-image">
     <h1 id="front-page-header">User Contribution And AI Tracker</h1>
+    <p>For Google Docs</p>
     <div id="front-page-container">  
         
         <p>Insert Google document link here:</p>
+        <div><p>Before Inserting Google Link, please ensure that you follow the following steps:</p>
+            <ul>
+                <li>Make sure the Google Doc is shared with the appropriate permissions.</li>
+                <li>Ensure the document is not restricted from editing.</li>
+            </ul>
+        </div>
         <input type="text" id="doc-url" placeholder="https://docs.google.com/document/d/...">
-        
-        <!-- Field for Gemini API Key if passed from front-end -->
-        <input type="text" id="gemini-key" style="display: none;">
-
-        <button id='start-button'>
+        <button id='start-button' type="button">
             <img src='/assets/arrow.png'></img>
         </button>
 

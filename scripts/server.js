@@ -1,4 +1,5 @@
 // scripts/server.js
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -9,7 +10,6 @@ app.use(express.json());
 
 // ROOT always points to the project root regardless of where node is run from
 const ROOT    = path.dirname(path.dirname(path.resolve(__filename)));
-console.log('[Debug] ROOT is:', ROOT)
 const STATIC  = path.join(ROOT, 'static');
 const STYLES  = path.join(ROOT, 'styles');
 const ASSETS  = path.join(ROOT, 'assets');
@@ -46,7 +46,7 @@ function extractDocId(input) {
  */
 function runScript(command, args) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { cwd: ROOT, shell: true });
+    const proc = spawn(command, args, { cwd: ROOT, shell: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
 
     proc.stdout.on('data', (data) => console.log(`[Script]: ${data.toString().trim()}`));
     proc.stderr.on('data', (data) => console.error(`[Script Err]: ${data.toString().trim()}`));
@@ -71,6 +71,10 @@ app.get('/', (req, res) => {
 
 app.get('/front_page.html', (req, res) => {
   sendFileContent(res, path.join(STATIC, 'front_page.html'), 'text/html');
+});
+
+app.get('/loading_page.html', (req, res) => {
+  sendFileContent(res, path.join(STATIC, 'loading_page.html'), 'text/html');
 });
 
 app.get('/download_page.html', (req, res) => {
@@ -153,14 +157,14 @@ app.post('/analyze', (req, res) => {
       jobs[jobId].step = 'Compiling PDF report...';
       const reportArgs = [
         'report.py',
-        '--charts',  jobDir,
-        '--output',  path.join(jobDir, 'report.pdf'),
-        '--title',   'Academic Contribution & Plagiarism Report',
+        '--charts',  `"${jobDir}"`,
+        '--output',  `"${path.join(jobDir, 'report.pdf')}"`,
+        '--title',   '"Academic Contribution & Plagiarism Report"',
       ];
 
       const analysisFile = path.join(jobDir, 'report-ai-analysis.txt');
       if (fs.existsSync(analysisFile)) {
-        reportArgs.push('--analysis', analysisFile);
+        reportArgs.push('--analysis', `"${analysisFile}"`);
       }
 
       await runScript('python', reportArgs);

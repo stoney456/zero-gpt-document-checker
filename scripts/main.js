@@ -1,45 +1,17 @@
-// public/app.js
+// scripts/main.js
 
 // === FRONT PAGE LOGIC ===
 const btn = document.getElementById("start-button");
 if (btn) {
-  const urlInput = document.getElementById("doc-url");
-  const keyInput = document.getElementById("gemini-key");
+  const urlInput   = document.getElementById("doc-url");
   const statusText = document.getElementById("status-text");
-
-  let pollTimer = null;
 
   function setStatus(msg) {
     statusText.textContent = msg;
   }
 
-  async function pollStatus() {
-    try {
-      const res = await fetch("/status");
-      const data = await res.json();
-
-      if (data.status === "running") {
-        setStatus("Running: " + data.step);
-        pollTimer = setTimeout(pollStatus, 2000);
-      } else if (data.status === "done") {
-        clearTimeout(pollTimer);
-        setStatus("Done! Redirecting to dashboard...");
-        setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
-      } else if (data.status === "error") {
-        clearTimeout(pollTimer);
-        btn.disabled = false;
-        setStatus("Error encountered: " + data.error);
-      }
-    } catch {
-      clearTimeout(pollTimer);
-      btn.disabled = false;
-      setStatus("Could not safely reach the server.");
-    }
-  }
-
   btn.addEventListener("click", async () => {
     const docUrl = urlInput.value.trim();
-    const geminiKey = keyInput.value.trim();
 
     if (!docUrl) {
       setStatus("Please paste a Google Doc URL or File ID first.");
@@ -47,14 +19,16 @@ if (btn) {
     }
 
     btn.disabled = true;
-    setStatus("Submitting target reference payload...");
+    setStatus("Submitting...");
 
     try {
       const res = await fetch("/analyze", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ docUrl, geminiKey: geminiKey || undefined }),
+        body:    JSON.stringify({ docUrl }),
       });
+
+      console.log("Response status:", res.status, "ok:", res.ok);
 
       if (!res.ok) {
         const err = await res.json();
@@ -63,13 +37,53 @@ if (btn) {
         return;
       }
 
-      setStatus("Analysis stack initialized safely...");
-      pollTimer = setTimeout(pollStatus, 2000);
-    } catch {
+      setStatus("Redirecting...");
+      window.location.replace("/loading_page.html");
+
+    } catch (err) {
+      console.error("Fetch error:", err);
       setStatus("Could not connect to service.");
       btn.disabled = false;
     }
   });
+}
+
+// === LOADING PAGE LOGIC ===
+const loadingContainer = document.getElementById("loading-page-container");
+if (loadingContainer) {
+  const statusText = document.getElementById("status-text");
+  let pollTimer = null;
+
+  function setStatus(msg) {
+    statusText.textContent = msg;
+  }
+
+  async function pollStatus() {
+    try {
+      const res  = await fetch("/status");
+      const data = await res.json();
+
+      if (data.status === "running") {
+        setStatus("Running: " + data.step);
+        pollTimer = setTimeout(pollStatus, 2000);
+
+      } else if (data.status === "done") {
+        clearTimeout(pollTimer);
+        setStatus("Done! Redirecting to download...");
+        setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
+
+      } else if (data.status === "error") {
+        clearTimeout(pollTimer);
+        setStatus("Error encountered: " + data.error);
+      }
+    } catch {
+      clearTimeout(pollTimer);
+      setStatus("Could not safely reach the server.");
+    }
+  }
+
+  // Start polling as soon as the loading page loads
+  pollStatus();
 }
 
 // === DOWNLOAD PAGE LOGIC ===

@@ -130,8 +130,8 @@ async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
     .join("\n\n");
 
   const prompt = `You are an expert at detecting AI-generated text. Below is text written by different users in a collaborative Google Doc. Each section is labeled with the user's name.
-Analyze the text of each user for AI plagiarism (i.e. whether their text appears to be AI-generated rather than human-written).
-For each user, your output must not have any markdown formatting, with keypoints in bolded blue text and explanations in bold. 
+Analyze the text of each user for AI plagiarism (i.e. whether their text appears to be AI-generated rather than human-written). You must show an example of 3 excerpts for each user.
+For each user, your output must not have any unknown markdown formatting or HTML tags. 
 The output should follow this format:
 
 User: <name of the user>
@@ -140,9 +140,9 @@ AI Plagirism Percentage: XX% (in brackets, provide likelihood of low/medium/high
 
 Analysis: <a clear explanation of why>
 
-Specific Excerpts (give 2-3 examples, don't state the exact line numbers but quote the text verbatim in double quotes): 
+Specific Excerpts: 
 Excerpt {no}: the quoted text
-Explanation(must show): your explanation of why this excerpt is likely AI-generated or human-written
+Explanation(must show): your explanation of why this excerpt is likely AI-generated or human-written.
 
 Excerpt {no}: another quoted text, change the excerpt number for each excerpt you quote
 Explanation(must show): your explanation of why this excerpt is likely AI-generated or human-written
@@ -189,7 +189,8 @@ Examples:
   const outputBase = rawOutput ? rawOutput.replace(/\.(json|csv)$/i, "") : null;
   const fromRevId  = args.includes("--from")       ? args[args.indexOf("--from") + 1]       : null;
   const toRevId    = args.includes("--to")         ? args[args.indexOf("--to") + 1]         : null;
-  const geminiKey = "AIzaSyDxlQkSi7z1_wZHeXNmkLSCzO7z5bfVzG8"
+  // Use your own Gemini API key for privacy reasons
+  const geminiKey = process.env.GEMINI_API_KEY || args[args.indexOf("--gemini-key") + 1] || null;
 
   const generatedAt = nowSGT();
 
@@ -344,7 +345,7 @@ Examples:
     return;
   }
 
-  const analysisText = await analyzeAIPlagiarism(userTextMap, geminiKey);
+  
 
   try {
   const analysisText = await analyzeAIPlagiarism(userTextMap, geminiKey);

@@ -27,6 +27,8 @@ from reportlab.platypus import (
 PAGE_W, PAGE_H = A4
 MARGIN = 2 * cm
 
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 # ── STYLES ────────────────────────────────────────────────────────────────────
 
 def make_styles():
