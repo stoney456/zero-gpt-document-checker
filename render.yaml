@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: contribution-tracker
+    runtime: node
+    buildCommand: npm install && pip install reportlab matplotlib seaborn pandas
+    startCommand: node scripts/server.js
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_SERVICE_KEY
+        sync: false
