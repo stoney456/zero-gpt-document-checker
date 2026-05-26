@@ -38,18 +38,25 @@ function nowSGT() { return toSGT(new Date().toISOString()); }
 // Authenticate using service account or application default credentials
 
 async function getAuthClient() {
+  // Option 1: environment variable (used on Render)
+  if (process.env.GOOGLE_SERVICE_KEY) {
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_KEY);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: SCOPES,
+    });
+    return auth.getClient();
+  }
+
+  // Option 2: local service-key.json file (used in local development)
   const serviceAccountPath = path.join(__dirname, "service-key.json");
   if (fs.existsSync(serviceAccountPath)) {
     const auth = new google.auth.GoogleAuth({ keyFile: serviceAccountPath, scopes: SCOPES });
     return auth.getClient();
   }
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    const auth = new google.auth.GoogleAuth({ scopes: SCOPES });
-    return auth.getClient();
-  }
-  throw new Error("No credentials found. Place credentials.json in this directory.");
-}
 
+  throw new Error("No credentials found. Set GOOGLE_SERVICE_KEY env variable or place service-key.json in scripts/.");
+}
 // ─── DRIVE HELPERS ────────────────────────────────────────────────────────────
 
 async function listRevisions(drive, fileId) {

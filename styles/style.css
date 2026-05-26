@@ -1,19 +1,100 @@
+body {
+    font-family: Calibri, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+}
+
+#front-page-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 25px !important; /* Slightly more space between larger elements */
+    width: 100% !important;
+    box-sizing: border-box;
+    margin-bottom: 30px; /* Pushes content below the header down a bit */
+}
+
+#logo-image {
+    width: 110px !important; /* Increased from 80px to make the logo stand out */
+    height: auto !important;
+    display: block !important;
+}
+
+.header-text {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+}
+
+.header-text h1 {
+    font-size: 32px !important; /* Increased from 24px for a strong title */
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 8px 0 !important; /* Small gap before subtitle */
+    color: #333; /* Clean, dark gray for readability */
+}
+
+.header-text p {
+    font-size: 18px !important; /* Increased from default 14px/16px */
+    color: #666; /* Subtle gray for the subtitle */
+    margin: 0 !important;
+}
+
+/* Responsive adjustment: scales text down smoothly on small screens */
+@media (max-width: 600px) {
+    #front-page-header {
+        gap: 15px !important;
+    }
+    #logo-image {
+        width: 80px !important;
+    }
+    .header-text h1 {
+        font-size: 24px !important;
+    }
+    .header-text p {
+        font-size: 15px !important;
+    }
+}
+
+#front-page-container {
+    background-color: white;
+    border-radius: 10px;
+    padding: 40px; /* Increased from 20px for more inner space */
+    width: 90%; /* Ensures the box shrinks safely on smaller mobile screens */
+    max-width: 800px; /* Increased from 600px to make the box wider */
+    margin: 40px auto; /* Added 40px top/bottom margin to center it vertically on the page */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Slightly deeper shadow to match the larger size */
+    box-sizing: border-box; /* Keeps padding from breaking your width calculations */
+}
+
+#doc-url {
+    width: 85%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    height: 40px; /* Match the button's height exactly */
+    box-sizing: border-box; /* Force total height to include padding/border */
+    vertical-align: middle; /* Aligns it inline with the button */
+}
+
 #start-button {
     background-color: #4CAF50;
     border: none;
     color: white;
-    /* Reduced padding so it doesn't crush the image inside a small 50px width */
     padding: 10px; 
     text-align: center;
     text-decoration: none;
     display: inline-block;
     font-size: 16px;
-    margin-top: 20px;
     cursor: pointer;
     border-radius: 5px;
     width: 40px;
-    height: 40px; /* Optional: Making it square usually looks better for icon buttons */
-    box-sizing: border-box; /* Ensures padding doesn't push width past 50px */
+    height: 40px; 
+    box-sizing: border-box; 
+    vertical-align: middle; /* Aligns it inline with the input */
 }
 
 /* The magic fix: Target the image inside the button */

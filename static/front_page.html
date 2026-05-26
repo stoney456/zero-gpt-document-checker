@@ -9,25 +9,32 @@
     <script src="/main.js" defer></script>
 </head>
 <body>
-    <img src="/assets/logo.png" id="logo-image">
-    <h1 id="front-page-header">User Contribution And AI Tracker</h1>
-    <p>For Google Docs</p>
+    
+    <div id="front-page-header">
+        <img src="/assets/logo.png" id="logo-image" alt="Logo">
+        <div class="header-text">
+            <h1>User Contribution And AI Tracker</h1>
+            <p>Document Checker for Google Docs</p>
+        </div>
+    </div>
+    
     <div id="front-page-container">  
         
-        <p>Insert Google document link here:</p>
-        <div><p>Before Inserting Google Link, please ensure that you follow the following steps:</p>
+        
+        <p>Before Inserting Google Link, please ensure that you follow the following steps:</p>
             <ul>
-                <li>Make sure the Google Doc is shared with the appropriate permissions.</li>
-                <li>Ensure the document is not restricted from editing.</li>
+                <li>Make sure the Google Doc is restricted and only accessible to authorized users.</li>
+                <li>Share the document with the email <b>'doc-checker-robot@contribution-checker.iam.gserviceaccount.com"</b>.</li>
             </ul>
-        </div>
+        
+        <p>Insert Google document link here:</p>
         <input type="text" id="doc-url" placeholder="https://docs.google.com/document/d/...">
         <button id='start-button' type="button">
             <img src='/assets/arrow.png'></img>
         </button>
-
-        <div id="status-text">Ready to run analysis.</div>
+        <div id="status-text"></div>
     </div>
+    
 
 </body>
 </html>
