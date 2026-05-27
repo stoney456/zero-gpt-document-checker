@@ -180,6 +180,24 @@ app.post('/analyze', (req, res) => {
     }
   })();
 });
+// POST /cancel - cancel currently running jobs (if any)
+app.post('/cancel', (req, res) => {
+  if (!currentJobId || !jobs[currentJobId] || jobs[currentJobId].status !== 'running') {
+    return res.json({ message: 'No running job to cancel.' });
+  }
+ 
+  // Kill the currently running child process
+  if (currentProc) {
+    currentProc.kill('SIGTERM');
+    currentProc = null;
+  }
+ 
+  jobs[currentJobId].status = 'cancelled';
+  jobs[currentJobId].step   = 'Cancelled by user.';
+  console.log(`[Pipeline]: Job ${currentJobId} cancelled.`);
+ 
+  res.json({ message: 'Job cancelled.' });
+});
 
 // ── GET /status ───────────────────────────────────────────────────────────────
 

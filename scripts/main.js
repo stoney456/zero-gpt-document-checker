@@ -51,43 +51,97 @@ if (btn) {
 // === LOADING PAGE LOGIC ===
 const loadingContainer = document.getElementById("loading-page-container");
 if (loadingContainer) {
-  const statusText = document.getElementById("status-text");
+  const statusText       = document.getElementById("status-text");
+  const loadingStatusText = document.getElementById("loading-status-text");
   let pollTimer = null;
+ 
+  // Map server step messages to step numbers
+  const stepMap = [
+    { keyword: "Extracting",  stepId: "step-1" },
+    { keyword: "charts",      stepId: "step-2" },
+    { keyword: "Compiling",   stepId: "step-3" },
+  ];
+ 
+  function updateSteps(stepMessage) {
+    // Find which step is currently active
+    let activeIndex = -1;
+    stepMap.forEach((s, i) => {
+      if (stepMessage.includes(s.keyword)) activeIndex = i;
+    });
+ 
+    stepMap.forEach((s, i) => {
+      const el = document.getElementById(s.stepId);
+      if (!el) return;
+      el.classList.remove("active", "done");
+      if (i < activeIndex) {
+        el.classList.add("done");
+        el.querySelector(".step-icon").textContent = "✓";
+      } else if (i === activeIndex) {
+        el.classList.add("active");
+        el.querySelector(".step-icon").textContent = i + 1;
+      }
+    });
+  }
 
-  function setStatus(msg) {
-    statusText.textContent = msg;
+    async function cancelJob() {
+    clearTimeout(pollTimer);
+    try {
+      await fetch("/cancel", { method: "POST" });
+    } catch {
+      // ignore errors — we're navigating away anyway
+    }
+    window.location.href = "/front_page.html";
+  }
+ 
+  // Cancel button click
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", cancelJob);
   }
 
   async function pollStatus() {
     try {
       const res  = await fetch("/status");
       const data = await res.json();
-
+ 
       if (data.status === "running") {
-        setStatus("Running: " + data.step);
+        statusText.textContent = data.step;
+        updateSteps(data.step);
         pollTimer = setTimeout(pollStatus, 2000);
-
+ 
       } else if (data.status === "done") {
         clearTimeout(pollTimer);
-        setStatus("Done! Redirecting to download...");
+ 
+        // Mark all steps as done
+        stepMap.forEach((s) => {
+          const el = document.getElementById(s.stepId);
+          if (!el) return;
+          el.classList.remove("active");
+          el.classList.add("done");
+          el.querySelector(".step-icon").textContent = "✓";
+        });
+ 
+        statusText.textContent = "Done!";
+        loadingStatusText.textContent = "Redirecting to download...";
         setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
-
+ 
       } else if (data.status === "error") {
         clearTimeout(pollTimer);
-        setStatus("Error encountered: " + data.error);
+        statusText.textContent = "Error: " + data.error;
+        loadingStatusText.textContent = "Please go back and try again.";
       }
+ 
     } catch {
       clearTimeout(pollTimer);
-      setStatus("Could not safely reach the server.");
+      statusText.textContent = "Could not reach the server.";
     }
   }
-
-  // Start polling as soon as the loading page loads
+ 
   pollStatus();
 }
 
+
 // === DOWNLOAD PAGE LOGIC ===
-const downloadBtn = document.getElementById("download-btn");
+const downloadBtn = document.getElementById("download-button");
 if (downloadBtn) {
   downloadBtn.addEventListener("click", () => {
     window.location.href = "/download";

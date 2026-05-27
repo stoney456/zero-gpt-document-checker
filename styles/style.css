@@ -104,3 +104,162 @@ body {
     object-fit: contain; /* Keeps the arrow from distorting or stretching */
     display: block;      /* Removes weird extra bottom spacing images sometimes get */
 }
+
+/*LOADING PAGE*/
+#loading-page-container {
+    background-color: white;
+    border-radius: 10px;
+    padding: 40px;
+    width: 90%;
+    max-width: 800px;
+    margin: 40px auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    text-align: center;
+}
+ 
+#loading-page-container h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 24px 0;
+}
+ 
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #e0e0e0;
+    border-top-color: #4CAF50;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin: 0 auto 24px auto;
+}
+ 
+#progress-steps {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 0 0;
+    text-align: left;
+    display: inline-block;
+    min-width: 320px;
+}
+ 
+#progress-steps li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 15px;
+    color: #aaa;
+    border-bottom: 1px solid #f0f0f0;
+    transition: color 0.3s;
+}
+ 
+#progress-steps li:last-child {
+    border-bottom: none;
+}
+ 
+#progress-steps li.active {
+    color: #333;
+    font-weight: 600;
+}
+ 
+#progress-steps li.done {
+    color: #4CAF50;
+}
+ 
+#progress-steps li .step-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    transition: all 0.3s;
+}
+ 
+#progress-steps li.active .step-icon {
+    border-color: #4CAF50;
+    background-color: #f0fff0;
+    color: #4CAF50;
+}
+ 
+#progress-steps li.done .step-icon {
+    border-color: #4CAF50;
+    background-color: #4CAF50;
+    color: white;
+}
+ 
+#loading-status-text {
+    margin-top: 20px;
+    font-size: 13px;
+    color: #999;
+    font-style: italic;
+    min-height: 20px;
+}
+#cancel-button {
+    margin-top: 24px;
+    background: none;
+    border: 1px solid #ccc;
+    color: #888;
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+ 
+#cancel-button:hover {
+    border-color: #e53e3e;
+    color: #e53e3e;
+}
+
+/*DOWNLOAD PAGE*/
+#download-page-container {
+    background-color: white;
+    border-radius: 10px;
+    padding: 40px;
+    width: 50%;
+    max-width: 800px;
+    margin: 40px auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    text-align: center;
+}
+ 
+#download-button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+ 
+#download-btn:hover {
+    background-color: #45a049;
+}
+ 
+#download-page-container a {
+    display: block;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #888;
+    text-decoration: none;
+}
+ 
+#download-page-container a:hover {
+    color: #4CAF50;
+}
+ 
+/* ── ANIMATIONS ───────────────────────────────────────────────────────────── */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

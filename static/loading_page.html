@@ -9,8 +9,27 @@
 </head>
 <body>
     <div id="loading-page-container">
-        <h1>Loading...</h1>
-        <div id="status-text">Starting analysis...</div>
+        <h1>Analysing Document...</h1>
+
+        <div class="spinner"></div>
+                <ul id="progress-steps">
+            <li id="step-1" class="active">
+                <span class="step-icon">1</span>
+                Extracting revision history and text from Google Docs...
+            </li>
+            <li id="step-2">
+                <span class="step-icon">2</span>
+                Generating Charts...
+            </li>
+            <li id="step-3">
+                <span class="step-icon">3</span>
+                Compiling PDF report
+            </li>
+        </ul>
+
+        <div id="status-text"></div>
+        <div id="loading-status-text">This would take some time...</div>
+        <button id="cancel-button" onclick="cancelLoading()">Cancel and go back</button>
     </div>
 </body>
 </html>
