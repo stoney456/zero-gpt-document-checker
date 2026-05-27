@@ -18,6 +18,7 @@ const SCRIPTS = path.join(ROOT, 'scripts');
 // Global job state tracker
 const jobs = {};
 let currentJobId = null;
+let currentProc = null; // To track the currently running child process for cancellation
 
 /**
  * Reads a file and sends it as a response with the correct content type.

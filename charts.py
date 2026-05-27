@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """
-Contribution Chart Generator
-Reads *-summary.csv and *-revisions.csv and outputs:
-  - contribution-pie.png            Overall net word contribution per user
-  - contribution-line-networds.png  Cumulative net words over time per user
-  - contribution-line-netchars.png  Cumulative net characters over time per user
+Contribution Chart Generator (True Step Charts)
+Reads *-summary.csv and *-revisions.csv and outputs flat step charts by 
+properly forward-filling missing timeline gaps.
 
 Usage:
     python charts.py --summary <summary.csv> --revisions <revisions.csv> [--output <folder>]
-
-Requirements:
-    pip install matplotlib seaborn pandas
 """
 
 import argparse
@@ -84,7 +79,7 @@ def plot_pie(summary_df, output_path):
     plt.close()
     print(f"  ✅ Pie chart saved → {output_path}")
 
-# ── LINE CHART ────────────────────────────────────────────────────────────────
+# ── TRUE STEP CHART BY DATE ───────────────────────────────────────────────────
 
 def plot_line(revisions_df, col, title, ylabel, output_path):
     df = revisions_df.copy()
@@ -93,42 +88,40 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     df["Timestamp"] = pd.to_datetime(
         df["Modified Time (SGT)"].str.replace(" SGT", "", regex=False),
         format="%Y-%m-%d %H:%M:%S",
-    )
+    ).dt.normalize()
 
-    # Strip time — group by date only to avoid intra-day vertical jumps
-    df["Timestamp"] = df["Timestamp"].dt.normalize()
+    # Group updates by name and date
     df = df.groupby(["Name", "Timestamp"], as_index=False)[col].sum()
 
-    users     = df["Name"].unique().tolist()
-    all_dates = df["Timestamp"].sort_values().unique()
-    last_date = pd.Timestamp(all_dates.max())
-    palette   = sns.color_palette("tab10", len(users))
+    users = df["Name"].unique().tolist()
+    if not users:
+        return
 
-    global_first_date = pd.Timestamp(all_dates.min())
+    # Create a complete timeline range from start to finish
+    min_date = df["Timestamp"].min()
+    max_date = df["Timestamp"].max()
+    all_dates = pd.date_range(start=min_date, end=max_date, freq='D')
 
-    records = []
+    # Build a comprehensive matrix of every user x every date to prevent diagonal lines
+    expanded_records = []
     for user in users:
-        user_rows = (
-            df[df["Name"] == user]
-            .sort_values("Timestamp")
-            .set_index("Timestamp")
-        )
+        user_df = df[df["Name"] == user].set_index("Timestamp")[[col]]
+        user_df = user_df.reindex(all_dates).fillna(0)
+        user_df["Cumulative"] = user_df[col].cumsum()   
+        
+        for date, row in user_df.iterrows():
+            expanded_records.append({
+                "Timestamp": date,
+                "User": user,
+                "Cumulative": row["Cumulative"]
+            })
 
-        # All users start at 0 on the earliest date across all users
-        records.append({"Timestamp": global_first_date, "User": user, "Cumulative": 0})
-
-        cumulative = 0
-        for date in all_dates:
-            if date in user_rows.index:
-                val = user_rows.loc[date, col]
-                cumulative += float(val) if not hasattr(val, "__len__") else float(val.iloc[0])
-            # Append every date so all lines run the full length
-            records.append({"Timestamp": date, "User": user, "Cumulative": cumulative})
-
-    long_df = pd.DataFrame(records).sort_values("Timestamp")
+    long_df = pd.DataFrame(expanded_records)
 
     fig, ax = plt.subplots(figsize=(11, 6))
+    palette = sns.color_palette("tab10", len(users))
 
+    # Plot step lines
     sns.lineplot(
         data=long_df,
         x="Timestamp",
@@ -136,24 +129,28 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
         hue="User",
         palette=palette,
         linewidth=2,
+        drawstyle="steps-post", 
         marker="o",
-        markersize=5,
+        markersize=4,
         ax=ax,
     )
 
-    # Shaded fill under each line
+    # Shaded step areas matching steps-post trajectory
     for i, user in enumerate(users):
         user_data = long_df[long_df["User"] == user].sort_values("Timestamp")
-        ax.fill_between(user_data["Timestamp"], user_data["Cumulative"],
-                        alpha=0.08, color=palette[i])
+        ax.fill_between(
+            user_data["Timestamp"], 
+            user_data["Cumulative"],
+            step="post",
+            alpha=0.06, 
+            color=palette[i]
+        )
 
-    # x-axis limits
-    first_ts   = pd.Timestamp(all_dates.min())
-    time_range = last_date - first_ts
+    # Axis formatting
+    time_range = max_date - min_date
     padding    = pd.Timedelta(days=1)
-    ax.set_xlim(first_ts - padding, last_date + padding)
+    ax.set_xlim(min_date - padding, max_date + padding)
 
-    # Auto-format time axis based on date range
     if time_range.days <= 7:
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
@@ -180,9 +177,9 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  ✅ Line chart saved → {output_path}")
+    print(f"  ✅ Step chart saved → {output_path}")
 
-# ── LINE CHART BY REVISION ───────────────────────────────────────────────────
+# ── TRUE STEP CHART BY REVISION ───────────────────────────────────────────────
 
 def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
     df = revisions_df.copy()
@@ -190,31 +187,31 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
     df["Name"]           = df["Name"].fillna("Unknown")
     df["Revision Index"] = pd.to_numeric(df["Revision Index"], errors="coerce")
 
-    users      = df["Name"].unique().tolist()
-    max_rev    = int(df["Revision Index"].max())
-    all_revs   = list(range(1, max_rev + 1))
-    palette    = sns.color_palette("tab10", len(users))
+    users    = df["Name"].unique().tolist()
+    max_rev  = int(df["Revision Index"].max()) if not df.empty else 0
+    all_revs = list(range(0, max_rev + 1))
 
-    records = []
+    # Track incremental changes per revision per user
+    expanded_records = []
     for user in users:
-        user_rows = (
-            df[df["Name"] == user]
-            .set_index("Revision Index")
-        )
-        # Anchor all users at revision 0 with cumulative 0
-        records.append({"Revision": 0, "User": user, "Cumulative": 0})
-
+        # Get revisions for this user, group duplicates if multiple edits happen on one revision
+        user_revs = df[df["Name"] == user].groupby("Revision Index")[col].sum()
+        
+        # Build complete sequential baseline across all sequence indexes
+        user_series = user_revs.reindex(all_revs).fillna(0)
+        
+        # Cumulative sum forward-fill
         cumulative = 0
         for rev in all_revs:
-            if rev in user_rows.index:
-                val = user_rows.loc[rev, col]
-                cumulative += float(val) if not hasattr(val, "__len__") else float(val.iloc[0])
-            records.append({"Revision": rev, "User": user, "Cumulative": cumulative})
+            cumulative += float(user_series.loc[rev])
+            expanded_records.append({"Revision": rev, "User": user, "Cumulative": cumulative})
 
-    long_df = pd.DataFrame(records).sort_values("Revision")
+    long_df = pd.DataFrame(expanded_records)
 
     fig, ax = plt.subplots(figsize=(11, 6))
+    palette = sns.color_palette("tab10", len(users))
 
+    # Plot step lines
     sns.lineplot(
         data=long_df,
         x="Revision",
@@ -222,16 +219,22 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
         hue="User",
         palette=palette,
         linewidth=2,
+        drawstyle="steps-post",
         marker="o",
-        markersize=5,
+        markersize=4,
         ax=ax,
     )
 
-    # Shaded fill under each line
+    # Shaded step areas matching steps-post trajectory
     for i, user in enumerate(users):
         user_data = long_df[long_df["User"] == user].sort_values("Revision")
-        ax.fill_between(user_data["Revision"], user_data["Cumulative"],
-                        alpha=0.08, color=palette[i])
+        ax.fill_between(
+            user_data["Revision"], 
+            user_data["Cumulative"],
+            step="post",
+            alpha=0.06, 
+            color=palette[i]
+        )
 
     ax.set_xlim(-0.5, max_rev + 0.5)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
@@ -250,20 +253,13 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  ✅ Revision chart saved → {output_path}")
-
+    print(f"  ✅ Revision step chart saved → {output_path}")
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate net contribution charts from Google Docs revision CSVs.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python charts.py --summary report-summary.csv --revisions report-revisions.csv
-  python charts.py --summary report-summary.csv --revisions report-revisions.csv --output charts
-        """
+        description="Generate net contribution true step charts from Google Docs revision CSVs."
     )
     parser.add_argument("--summary",   required=True, help="Path to *-summary.csv")
     parser.add_argument("--revisions", required=True, help="Path to *-revisions.csv")
@@ -281,7 +277,11 @@ Examples:
     summary_df   = load_csv(args.summary)
     revisions_df = load_csv(args.revisions)
 
-    # Compute net chars if not already in revisions CSV
+    # Compute Net Words and Chars
+    revisions_df["Net Words"] = (
+        pd.to_numeric(revisions_df["Words Added"],   errors="coerce").fillna(0) -
+        pd.to_numeric(revisions_df["Words Removed"], errors="coerce").fillna(0)
+    )
     revisions_df["Net Chars"] = (
         pd.to_numeric(revisions_df["Chars Added"],   errors="coerce").fillna(0) -
         pd.to_numeric(revisions_df["Chars Removed"], errors="coerce").fillna(0)
@@ -290,24 +290,29 @@ Examples:
     print(f"   {len(summary_df)} users found in summary")
     print(f"   {len(revisions_df)} revisions found\n")
 
-    pie_path            = os.path.join(args.output, "contribution-pie.png")
-    words_line_path     = os.path.join(args.output, "contribution-line-networds.png")
-    chars_line_path     = os.path.join(args.output, "contribution-line-netchars.png")
-    words_rev_path      = os.path.join(args.output, "contribution-revision-networds.png")
-    chars_rev_path      = os.path.join(args.output, "contribution-revision-netchars.png")
+    # Target filenames updated to match "step chart" taxonomy
+    pie_path        = os.path.join(args.output, "contribution-pie.png")
+    words_line_path = os.path.join(args.output, "contribution-step-networds.png")
+    chars_line_path = os.path.join(args.output, "contribution-step-netchars.png")
+    words_rev_path  = os.path.join(args.output, "contribution-step-revision-networds.png")
+    chars_rev_path  = os.path.join(args.output, "contribution-step-revision-netchars.png")
 
-    print("🎨 Generating charts...")
+    print("🎨 Generating true step charts...")
     plot_pie(summary_df, pie_path)
+    
+    # Date true step charts
     plot_line(revisions_df, "Net Words", "Progressive Net Word Contribution Over Time",
               "Cumulative Net Words", words_line_path)
     plot_line(revisions_df, "Net Chars", "Progressive Net Character Contribution Over Time",
               "Cumulative Net Characters", chars_line_path)
+    
+    # Revision true step charts
     plot_line_by_revision(revisions_df, "Net Words", "Net Word Contribution by Revision",
-              "Cumulative Net Words", words_rev_path)
+                          "Cumulative Net Words", words_rev_path)
     plot_line_by_revision(revisions_df, "Net Chars", "Net Character Contribution by Revision",
-              "Cumulative Net Characters", chars_rev_path)
+                          "Cumulative Net Characters", chars_rev_path)
 
-    print(f"\n✅ Done! Charts saved to: {os.path.abspath(args.output)}")
+    print(f"\n✅ Done! Step charts saved to: {os.path.abspath(args.output)}")
 
 if __name__ == "__main__":
     main()

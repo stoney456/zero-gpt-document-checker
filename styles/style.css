@@ -202,7 +202,7 @@ body {
 }
 #cancel-button {
     margin-top: 24px;
-    background: none;
+    background: #f0f0f0;
     border: 1px solid #ccc;
     color: #888;
     padding: 8px 20px;
@@ -213,8 +213,9 @@ body {
 }
  
 #cancel-button:hover {
+    color: white;
     border-color: #e53e3e;
-    color: #e53e3e;
+    background: #e53e3e;
 }
 
 /*DOWNLOAD PAGE*/

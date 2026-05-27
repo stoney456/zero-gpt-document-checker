@@ -51,8 +51,9 @@ if (btn) {
 // === LOADING PAGE LOGIC ===
 const loadingContainer = document.getElementById("loading-page-container");
 if (loadingContainer) {
-  const statusText       = document.getElementById("status-text");
+  const statusText        = document.getElementById("status-text");
   const loadingStatusText = document.getElementById("loading-status-text");
+  const cancelBtn         = document.getElementById("cancel-button");
   let pollTimer = null;
  
   // Map server step messages to step numbers
@@ -63,7 +64,6 @@ if (loadingContainer) {
   ];
  
   function updateSteps(stepMessage) {
-    // Find which step is currently active
     let activeIndex = -1;
     stepMap.forEach((s, i) => {
       if (stepMessage.includes(s.keyword)) activeIndex = i;
@@ -82,8 +82,8 @@ if (loadingContainer) {
       }
     });
   }
-
-    async function cancelJob() {
+ 
+  async function cancelJob() {
     clearTimeout(pollTimer);
     try {
       await fetch("/cancel", { method: "POST" });
@@ -97,7 +97,7 @@ if (loadingContainer) {
   if (cancelBtn) {
     cancelBtn.addEventListener("click", cancelJob);
   }
-
+ 
   async function pollStatus() {
     try {
       const res  = await fetch("/status");
@@ -124,10 +124,15 @@ if (loadingContainer) {
         loadingStatusText.textContent = "Redirecting to download...";
         setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
  
+      } else if (data.status === "cancelled") {
+        clearTimeout(pollTimer);
+        window.location.href = "/front_page.html";
+ 
       } else if (data.status === "error") {
         clearTimeout(pollTimer);
         statusText.textContent = "Error: " + data.error;
         loadingStatusText.textContent = "Please go back and try again.";
+        if (cancelBtn) cancelBtn.textContent = "Go back";
       }
  
     } catch {
