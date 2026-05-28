@@ -20,6 +20,7 @@ const jobs = {};
 let currentJobId = null;
 let currentProc = null; // To track the currently running child process for cancellation
 
+
 /**
  * Reads a file and sends it as a response with the correct content type.
  */
@@ -189,9 +190,13 @@ app.post('/cancel', (req, res) => {
  
   // Kill the currently running child process
   if (currentProc) {
-    currentProc.kill('SIGTERM');
+    try {
+        spawn('taskkill', ['/pid', currentProc.pid, '/f', '/t']);
+    } catch (e) {
+        currentProc.kill('SIGKILL');
+    }
     currentProc = null;
-  }
+}
  
   jobs[currentJobId].status = 'cancelled';
   jobs[currentJobId].step   = 'Cancelled by user.';

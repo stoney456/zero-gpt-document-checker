@@ -39,13 +39,18 @@ function nowSGT() { return toSGT(new Date().toISOString()); }
 
 async function getAuthClient() {
   // Option 1: environment variable (used on Render)
-  if (process.env.GOOGLE_SERVICE_KEY) {
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_KEY);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: SCOPES,
-    });
-    return auth.getClient();
+  const serviceKeyEnv = process.env.GOOGLE_SERVICE_KEY;
+  if (serviceKeyEnv && serviceKeyEnv.trim().startsWith('{') && serviceKeyEnv.trim().endsWith('}')) {
+    try {
+      const credentials = JSON.parse(serviceKeyEnv);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: SCOPES,
+      });
+      return auth.getClient();
+    } catch (err) {
+      console.error('⚠️  GOOGLE_SERVICE_KEY is set but invalid JSON, falling back to service-key.json');
+    }
   }
 
   // Option 2: local service-key.json file (used in local development)
