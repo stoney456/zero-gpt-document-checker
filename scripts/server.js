@@ -48,20 +48,30 @@ function extractDocId(input) {
  */
 function runScript(command, args) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { cwd: ROOT, shell: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+    // Use shell: false so we get the actual process PID for killing
+    const proc = spawn(command, args, { 
+      cwd: ROOT, 
+      shell: true, 
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+    });
+    currentProc = proc;
 
     proc.stdout.on('data', (data) => console.log(`[Script]: ${data.toString().trim()}`));
     proc.stderr.on('data', (data) => console.error(`[Script Err]: ${data.toString().trim()}`));
 
     proc.on('close', (code) => {
-      if (code === 0) {
+      currentProc = null;
+      if (code === 0 || code === null) {
         resolve();
       } else {
         reject(new Error(`Script exited with code ${code}`));
       }
     });
 
-    proc.on('error', (err) => reject(new Error(`Failed to spawn process: ${err.message}`)));
+    proc.on('error', (err) => {
+      currentProc = null;
+      reject(new Error(`Failed to spawn process: ${err.message}`));
+    });
   });
 }
 
@@ -187,21 +197,21 @@ app.post('/cancel', (req, res) => {
   if (!currentJobId || !jobs[currentJobId] || jobs[currentJobId].status !== 'running') {
     return res.json({ message: 'No running job to cancel.' });
   }
- 
-  // Kill the currently running child process
+
   if (currentProc) {
     try {
-        spawn('taskkill', ['/pid', currentProc.pid, '/f', '/t']);
+      // Kill entire process tree by PID on Windows
+      spawn('taskkill', ['/pid', String(currentProc.pid), '/f', '/t'], { shell: true });
     } catch (e) {
-        currentProc.kill('SIGKILL');
+      console.error('taskkill failed:', e.message);
     }
     currentProc = null;
-}
- 
+  }
+
   jobs[currentJobId].status = 'cancelled';
-  jobs[currentJobId].step   = 'Cancelled by user.';
+  jobs[currentJobId].step = 'Cancelled by user.';
   console.log(`[Pipeline]: Job ${currentJobId} cancelled.`);
- 
+
   res.json({ message: 'Job cancelled.' });
 });
 

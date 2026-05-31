@@ -1,4 +1,3 @@
-// Fix for corporate proxy / self-signed certificate chain errors
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 /**
@@ -7,7 +6,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
  * All timestamps in Singapore Time (SGT, UTC+8)
  *
  * Usage:
- *   node index.js <fileId> [--output <basePath>] [--from <revId>] [--to <revId>] [--gemini-key <apiKey>]
+ *   node analysis.js <fileId> [--output <basePath>] [--from <revId>] [--to <revId>]
  *
  * Requirements:
  *   npm install googleapis diff @google/genai
@@ -24,7 +23,6 @@ const SCOPES = [
   "https://www.googleapis.com/auth/documents.readonly",
 ];
 
-// Convert ISO timestamp to Singapore Time (SGT)
 function toSGT(isoString) {
   if (!isoString) return null;
   const sgtMs = new Date(isoString).getTime() + 8 * 60 * 60 * 1000;
@@ -35,34 +33,32 @@ function toSGT(isoString) {
 
 function nowSGT() { return toSGT(new Date().toISOString()); }
 
-// Authenticate using service account or application default credentials
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 
 async function getAuthClient() {
-  // Option 1: environment variable (used on Render)
+  // Option 1: environment variable
   const serviceKeyEnv = process.env.GOOGLE_SERVICE_KEY;
-  if (serviceKeyEnv && serviceKeyEnv.trim().startsWith('{') && serviceKeyEnv.trim().endsWith('}')) {
+  if (serviceKeyEnv && serviceKeyEnv.trim().startsWith("{")) {
     try {
       const credentials = JSON.parse(serviceKeyEnv);
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: SCOPES,
-      });
+      const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
       return auth.getClient();
     } catch (err) {
-      console.error('⚠️  GOOGLE_SERVICE_KEY is set but invalid JSON, falling back to service-key.json');
+      console.error("GOOGLE_SERVICE_KEY env var is invalid JSON, falling back to service-key.json");
     }
   }
 
-  // Option 2: local service-key.json file (used in local development)
+  // Option 2: service-key.json file
   const serviceAccountPath = path.join(__dirname, "service-key.json");
   if (fs.existsSync(serviceAccountPath)) {
     const auth = new google.auth.GoogleAuth({ keyFile: serviceAccountPath, scopes: SCOPES });
     return auth.getClient();
   }
 
-  throw new Error("No credentials found. Set GOOGLE_SERVICE_KEY env variable or place service-key.json in scripts/.");
+  throw new Error("No credentials found. Set GOOGLE_SERVICE_KEY env variable or place service-key.json in the scripts folder.");
 }
-// ─── DRIVE HELPERS ────────────────────────────────────────────────────────────
+
+// ── DRIVE HELPERS ─────────────────────────────────────────────────────────────
 
 async function listRevisions(drive, fileId) {
   const res = await drive.revisions.list({
@@ -78,7 +74,7 @@ async function exportRevisionAsText(auth, fileId, revisionId) {
   return (res.data || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 }
 
-// ─── DIFF ─────────────────────────────────────────────────────────────────────
+// ── DIFF ──────────────────────────────────────────────────────────────────────
 
 function computeDiff(prevText, currText) {
   const changes = diffWords(prevText, currText);
@@ -99,7 +95,50 @@ function computeDiff(prevText, currText) {
   };
 }
 
-// ─── CSV ──────────────────────────────────────────────────────────────────────
+// ── USER TEXT MAP ─────────────────────────────────────────────────────────────
+// Collects text added by each user across all their revisions.
+// Uses the final document text to verify chunks still exist before including them.
+
+function buildUserFinalTextMap(revisions, texts) {
+  const finalText = texts[texts.length - 1] ?? "";
+  const userChunks = {};
+
+  for (let i = 0; i < revisions.length; i++) {
+    const currText = texts[i];
+    if (currText === null) continue;
+
+    const prevText = i === 0 ? "" : (texts[i - 1] ?? "");
+    const author = revisions[i].lastModifyingUser?.displayName || "Unknown";
+    const changes = diffWords(prevText || "", currText);
+
+    changes.forEach((part) => {
+      if (part.added && part.value.trim().length > 0) {
+        if (!userChunks[author]) userChunks[author] = [];
+        userChunks[author].push(part.value.trim());
+      }
+    });
+  }
+
+  // Only keep chunks that still appear in the final document
+  const result = {};
+  Object.entries(userChunks).forEach(([author, chunks]) => {
+    const surviving = chunks.filter(chunk => {
+      const words = chunk.split(/\s+/).filter(Boolean);
+      if (words.length < 3) return false;
+      const phrase = words.slice(0, 4).join(" ").toLowerCase();
+      return finalText.toLowerCase().includes(phrase);
+    });
+
+    // Fall back to all chunks if none survived
+    const toUse = surviving.length > 0 ? surviving : chunks.filter(c => c.length > 10);
+    const combined = toUse.join(" ").trim();
+    if (combined.length > 0) result[author] = combined;
+  });
+
+  return result;
+}
+
+// ── CSV ───────────────────────────────────────────────────────────────────────
 
 function csv(val) {
   if (val === null || val === undefined) return "";
@@ -131,117 +170,144 @@ function buildRevisionCSV(revisions, fileId, generatedAt) {
   return [meta, header, ...rows].join("\n");
 }
 
-// AI Plagiarism Analysis using LLM
+// ── AI ANALYSIS ───────────────────────────────────────────────────────────────
 
 async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
+  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey })
-  // Build a combined prompt with all users' added text
-  const userSections = Object.entries(userTextMap)
-    .map(([name, text]) => `=== ${name} ===\n${text}`)
-    .join("\n\n");
+  const perUserPrompt = (name, text) => `You are an expert at detecting AI-generated text.
+Analyze the following text written by "${name}" for AI plagiarism.
+Your output must not have any markdown formatting or HTML tags.
+Follow this format exactly:
 
-  const prompt = `You are an expert at detecting AI-generated text. Below is text written by different users in a collaborative Google Doc. Each section is labeled with the user's name.
-Analyze the text of each user for AI plagiarism (i.e. whether their text appears to be AI-generated rather than human-written). You must show an example of 3 excerpts for each user.
-For each user, your output must not have any unknown markdown formatting or HTML tags. 
-The output should follow this format:
+User: ${name}
 
-User: <name of the user>
+AI Plagiarism Percentage: XX% (Low / Medium / High)
 
-AI Plagirism Percentage: XX% (in brackets, provide likelihood of low/medium/high)
+Analysis: A clear explanation of why.
 
-Analysis: <a clear explanation of why>
+Specific Excerpts:
+Excerpt 1: the quoted text
+Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
 
-Specific Excerpts: 
-Excerpt {no}: the quoted text
-Explanation(must show): your explanation of why this excerpt is likely AI-generated or human-written.
+Excerpt 2: the quoted text
+Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
 
-Excerpt {no}: another quoted text, change the excerpt number for each excerpt you quote
-Explanation(must show): your explanation of why this excerpt is likely AI-generated or human-written
+Excerpt 3: the quoted text
+Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
 ---
 
-${userSections}`;
+=== ${name} ===
+${text}`;
 
-  console.error("\n🤖 Running AI plagiarism analysis via Gemini...");
+  console.error("Running AI plagiarism analysis...");
 
-  const response = await ai.models.generateContent({
-    model: "gemma-4-26b-a4b-it",
-    contents: prompt,
-  });
-  
-  return response.text
+  const entries = Object.entries(userTextMap);
+  const results = await Promise.all(
+    entries.map(async ([name, text]) => {
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemma-4-26b-a4b-it",
+          contents: [{ role: "user", parts: [{ text: perUserPrompt(name, text) }] }],
+          config: { maxOutputTokens: 8192 },
+        });
+
+        // Extract text from candidates directly to handle MAX_TOKENS cutoff gracefully
+        let result = "";
+        if (response?.candidates?.[0]?.content?.parts) {
+          result = response.candidates[0].content.parts
+            .filter(p => !p.thought)
+            .map(p => p.text || "")
+            .join("")
+            .trim();
+        }
+        if (!result) result = (response.text || "").trim();
+
+        if (!result) {
+          console.error(`Warning: empty response for "${name}"`);
+          return `User: ${name}\n\nAI Plagiarism Percentage: N/A\n\nAnalysis: Model returned no response for this user.\n---`;
+        }
+        return result;
+      } catch (err) {
+        console.error(`Failed for "${name}": ${err.message}`);
+        return `User: ${name}\n\nAI Plagiarism Percentage: N/A\n\nAnalysis: Error during analysis: ${err.message}\n---`;
+      }
+    })
+  );
+
+  return results.join("\n\n");
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ── MAIN ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
 
   if (!args.length || args[0] === "--help") {
     console.log(`
-Usage: node index.js <fileId> [--output <basePath>] [--from <revId>] [--to <revId>] [--gemini-key <apiKey>]
+Usage: node analysis.js <fileId> [--output <basePath>] [--from <revId>] [--to <revId>]
+
+Environment variables:
+  GOOGLE_SERVICE_KEY   Service account JSON (string)
+  GEMINI_API_KEY       Gemini API key
 
 Outputs (when --output is set):
   <basePath>.json              Full revision diff + user summary
   <basePath>-summary.csv       Per-user contribution summary
   <basePath>-revisions.csv     Per-revision stats table
-  <basePath>-ai-analysis.txt   AI plagiarism analysis per user (requires --gemini-key)
-
-All timestamps are in Singapore Time (SGT, UTC+8).
-
-Examples:
-  node index.js 1BxiMVs0XRA5... --output report --gemini-key YOUR_KEY
-  node index.js 1BxiMVs0XRA5... --from 3 --to 7 --output filtered --gemini-key YOUR_KEY
+  <basePath>-ai-analysis.txt   AI plagiarism analysis per user
     `);
     process.exit(0);
   }
 
   const fileId     = args[0];
-  const rawOutput  = args.includes("--output")     ? args[args.indexOf("--output") + 1]     : null;
+  const rawOutput  = args.includes("--output") ? args[args.indexOf("--output") + 1] : null;
   const outputBase = rawOutput ? rawOutput.replace(/\.(json|csv)$/i, "") : null;
-  const fromRevId  = args.includes("--from")       ? args[args.indexOf("--from") + 1]       : null;
-  const toRevId    = args.includes("--to")         ? args[args.indexOf("--to") + 1]         : null;
-  // Use your own Gemini API key for privacy reasons
-  const geminiKey = process.env.GEMINI_API_KEY || args[args.indexOf("--gemini-key") + 1] || null;
+  const fromRevId  = args.includes("--from")   ? args[args.indexOf("--from") + 1]   : null;
+  const toRevId    = args.includes("--to")     ? args[args.indexOf("--to") + 1]     : null;
+
+  // Gemini key: environment variable only
+  const geminiKey = process.env.GEMINI_API_KEY || null;
+  if (!geminiKey) {
+    console.error("No GEMINI_API_KEY environment variable set. Skipping AI analysis.");
+  }
 
   const generatedAt = nowSGT();
 
-  console.error("🔐 Authenticating...");
+  console.error("Authenticating...");
   const authClient = await getAuthClient();
   const drive = google.drive({ version: "v3", auth: authClient });
 
-  console.error("📋 Fetching revision list...");
+  console.error("Fetching revision list...");
   let revisions = await listRevisions(drive, fileId);
-  if (!revisions.length) { console.error("❌ No revisions found."); process.exit(1); }
+  if (!revisions.length) { console.error("No revisions found."); process.exit(1); }
 
   if (fromRevId) {
     const idx = revisions.findIndex((r) => r.id === fromRevId);
-    if (idx === -1) { console.error(`❌ Revision "${fromRevId}" not found.`); process.exit(1); }
+    if (idx === -1) { console.error(`Revision "${fromRevId}" not found.`); process.exit(1); }
     revisions = revisions.slice(idx);
   }
   if (toRevId) {
     const idx = revisions.findIndex((r) => r.id === toRevId);
-    if (idx === -1) { console.error(`❌ Revision "${toRevId}" not found.`); process.exit(1); }
+    if (idx === -1) { console.error(`Revision "${toRevId}" not found.`); process.exit(1); }
     revisions = revisions.slice(0, idx + 1);
   }
 
-  console.error(`📄 Processing ${revisions.length} revisions...\n`);
+  console.error(`Processing ${revisions.length} revisions...`);
 
-  // Export all revision texts
   const texts = [];
   for (let i = 0; i < revisions.length; i++) {
     const rev = revisions[i];
-    console.error(`  ↓ [${i+1}/${revisions.length}] Rev ${rev.id} — ${rev.lastModifyingUser?.displayName || "Unknown"} — ${toSGT(rev.modifiedTime)}`);
+    console.error(`  [${i+1}/${revisions.length}] Rev ${rev.id} — ${rev.lastModifyingUser?.displayName || "Unknown"} — ${toSGT(rev.modifiedTime)}`);
     try {
       texts.push(await exportRevisionAsText(authClient, fileId, rev.id));
     } catch (err) {
-      console.error(`    ⚠️  Export failed (${err.response?.status ?? "?"}): ${err.message}`);
+      console.error(`    Export failed (${err.response?.status ?? "?"}): ${err.message}`);
       texts.push(null);
     }
     if (i < revisions.length - 1) await new Promise((r) => setTimeout(r, 5000));
   }
 
-  // Build revision entries
   const revisionEntries = [];
   let lastGoodText = "";
 
@@ -275,10 +341,7 @@ Examples:
     revisionEntries.push(entry);
   }
 
-  // Per-user summary + collect added text per user for AI analysis
   const userMap = {};
-  const userAddedText = {}; // accumulates all added text per user for Gemini
-
   revisionEntries.forEach((rev) => {
     if (!rev.diff) return;
     const key = rev.modifiedBy.email || rev.modifiedBy.name;
@@ -290,26 +353,19 @@ Examples:
         totalCharsAdded: 0, totalCharsRemoved: 0,
         firstEditSGT: null, lastEditSGT: null,
       };
-      userAddedText[key] = { name: rev.modifiedBy.name, chunks: [] };
     }
 
     const u = userMap[key];
     u.revisionsCount++;
-    u.totalWordsAdded  += rev.diff.stats.wordsAdded;
+    u.totalWordsAdded   += rev.diff.stats.wordsAdded;
     u.totalWordsRemoved += rev.diff.stats.wordsRemoved;
-    u.totalCharsAdded  += rev.diff.stats.charsAdded;
+    u.totalCharsAdded   += rev.diff.stats.charsAdded;
     u.totalCharsRemoved += rev.diff.stats.charsRemoved;
     if (!u.firstEditSGT) u.firstEditSGT = rev.modifiedTimeSGT;
     u.lastEditSGT = rev.modifiedTimeSGT;
-
-    // Collect the text this user added across all their revisions
-    if (rev.diff.added.length > 0) {
-      userAddedText[key].chunks.push(...rev.diff.added);
-    }
   });
 
   const userSummary = Object.values(userMap);
-
   const output = {
     fileId, generatedAt,
     timezone: "Asia/Singapore (UTC+8)",
@@ -318,65 +374,72 @@ Examples:
     revisions: revisionEntries,
   };
 
-  // Save revision files
   if (outputBase) {
-    const jsonPath      = `${outputBase}.json`;
-    const summaryPath   = `${outputBase}-summary.csv`;
-    const revisionsPath = `${outputBase}-revisions.csv`;
-
-    fs.writeFileSync(jsonPath,      JSON.stringify(output, null, 2), "utf8");
-    fs.writeFileSync(summaryPath,   buildSummaryCSV(userSummary, fileId, generatedAt), "utf8");
-    fs.writeFileSync(revisionsPath, buildRevisionCSV(revisionEntries, fileId, generatedAt), "utf8");
-
-    console.error(`\n✅ Revision outputs saved:`);
-    console.error(`   📄 ${jsonPath}`);
-    console.error(`   📊 ${summaryPath}   ← per-user summary`);
-    console.error(`   📋 ${revisionsPath} ← all revisions`);
+    fs.writeFileSync(`${outputBase}.json`,          JSON.stringify(output, null, 2), "utf8");
+    fs.writeFileSync(`${outputBase}-summary.csv`,   buildSummaryCSV(userSummary, fileId, generatedAt), "utf8");
+    fs.writeFileSync(`${outputBase}-revisions.csv`, buildRevisionCSV(revisionEntries, fileId, generatedAt), "utf8");
+    console.error(`Revision outputs saved: ${outputBase}.json, ${outputBase}-summary.csv, ${outputBase}-revisions.csv`);
   } else {
     console.log(JSON.stringify(output, null, 2));
   }
 
-  // ─── AI PLAGIARISM ANALYSIS ────────────────────────────────────────────────
+  // ── AI ANALYSIS ─────────────────────────────────────────────────────────────
 
-  if (!geminiKey) {
-    console.error("\n⚠️  No Gemini API key provided. Skipping AI plagiarism analysis.");
-    console.error("   Pass --gemini-key YOUR_KEY or set the GEMINI_API_KEY environment variable.");
-    return;
-  }
+  if (!geminiKey) return;
 
-  // Build a map of { displayName -> combined added text } for users who actually wrote something
-  const userTextMap = {};
-  Object.values(userAddedText).forEach(({ name, chunks }) => {
-    if (chunks.length > 0) {
-      userTextMap[name] = chunks.join(" ");
-    }
-  });
+  console.error("Attributing final document text to users...");
+  const userTextMap = buildUserFinalTextMap(revisions, texts);
+
+  // Debug: show what authors were found across all revisions
+  const allAuthors = [...new Set(revisions.map(r => r.lastModifyingUser?.displayName || "Unknown"))];
+  console.error(`Authors found in revisions: ${allAuthors.join(", ")}`);
+  console.error(`Authors in final text map: ${Object.keys(userTextMap).join(", ")}`);
 
   if (!Object.keys(userTextMap).length) {
-    console.error("\n⚠️  No added text found for any user. Skipping AI analysis.");
+    console.error("No text attributed to any user. Skipping AI analysis.");
     return;
   }
 
-  
-
-  try {
-  const analysisText = await analyzeAIPlagiarism(userTextMap, geminiKey);
-
+  // Clear stale analysis file
   if (outputBase) {
     const analysisPath = `${outputBase}-ai-analysis.txt`;
-    const header = `AI Plagiarism Analysis\nFile ID: ${fileId}\nGenerated: ${generatedAt}\n${"=".repeat(60)}\n\n`;
-    fs.writeFileSync(analysisPath, header + analysisText, "utf8");
-    console.error(`   🤖 ${analysisPath} ← AI plagiarism analysis`);
-  } else {
-    console.log("\n=== AI PLAGIARISM ANALYSIS ===\n");
-    console.log(analysisText);
+    if (fs.existsSync(analysisPath)) fs.unlinkSync(analysisPath);
   }
-} catch (aiErr) {
-  console.error(`\n⚠️  AI analysis skipped: ${aiErr.message}`);
-}
+
+  // List available models to find correct Gemma model name for this API key
+  try {
+    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const modelsResponse = await ai.models.list();
+    const gemmaModels = modelsResponse.models
+      .filter(m => m.name.toLowerCase().includes("gemma"))
+      .map(m => m.name);
+    console.error("Available Gemma models: " + (gemmaModels.join(", ") || "none found"));
+  } catch (listErr) {
+    console.error("Could not list models: " + listErr.message);
+  }
+
+  try {
+    const analysisText = await analyzeAIPlagiarism(userTextMap, geminiKey);
+
+    if (outputBase) {
+      const analysisPath = `${outputBase}-ai-analysis.txt`;
+      const header = `AI Plagiarism Analysis\nFile ID: ${fileId}\nGenerated: ${generatedAt}\n${"=".repeat(60)}\n\n`;
+      fs.writeFileSync(analysisPath, header + analysisText, "utf8");
+      console.error(`AI analysis saved: ${analysisPath}`);
+    } else {
+      console.log("\n=== AI PLAGIARISM ANALYSIS ===\n");
+      console.log(analysisText);
+    }
+  } catch (aiErr) {
+    console.error(`AI analysis failed: ${aiErr.message}`);
+    if (aiErr.response) {
+      console.error(`Gemini status: ${aiErr.response.status}`);
+      console.error(`Gemini body: ${JSON.stringify(aiErr.response.data)}`);
+    }
+  }
 }
 
 main().catch((err) => {
-  console.error("\n❌ Fatal error:", err.message);
+  console.error("Fatal error:", err.message);
   process.exit(1);
 });
