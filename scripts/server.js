@@ -149,14 +149,14 @@ app.post('/analyze', (req, res) => {
 
   (async () => {
     try {
-      // ── Step 1: analysis.js ──────────────────────────────────────────────
+      // STEP 1: analysis.js 
       await runScript('node', [
         path.join(SCRIPTS, 'analysis.js'),
         cleanDocId,
         '--output', path.join(jobDir, 'report'),
       ]);
 
-      // ── Step 2: charts.py ────────────────────────────────────────────────
+      // STEP 2: charts.py 
       jobs[jobId].step = 'Generating contribution charts...';
       await runScript('python', [
         'charts.py',
@@ -165,7 +165,7 @@ app.post('/analyze', (req, res) => {
         '--output',    jobDir,
       ]);
 
-      // ── Step 3: report.py ────────────────────────────────────────────────
+      // STEP 3: report.py 
       jobs[jobId].step = 'Compiling PDF report...';
       const reportArgs = [
         'report.py',

@@ -23,6 +23,8 @@ const SCOPES = [
   "https://www.googleapis.com/auth/documents.readonly",
 ];
 
+// CONVERT TIMEZONE
+// Convert ISO timestamp to Singapore Time (SGT)
 function toSGT(isoString) {
   if (!isoString) return null;
   const sgtMs = new Date(isoString).getTime() + 8 * 60 * 60 * 1000;
@@ -33,7 +35,7 @@ function toSGT(isoString) {
 
 function nowSGT() { return toSGT(new Date().toISOString()); }
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
+// Authentication
 
 async function getAuthClient() {
   // Option 1: environment variable
@@ -48,7 +50,7 @@ async function getAuthClient() {
     }
   }
 
-  // Option 2: service-key.json file
+  // Option 2: Run application locally if environment key cannot be used locally, fallback on service-key.json
   const serviceAccountPath = path.join(__dirname, "service-key.json");
   if (fs.existsSync(serviceAccountPath)) {
     const auth = new google.auth.GoogleAuth({ keyFile: serviceAccountPath, scopes: SCOPES });
@@ -58,7 +60,7 @@ async function getAuthClient() {
   throw new Error("No credentials found. Set GOOGLE_SERVICE_KEY env variable or place service-key.json in the scripts folder.");
 }
 
-// ── DRIVE HELPERS ─────────────────────────────────────────────────────────────
+// GOOGLE DOCS REVISIONS RETRIEVAL
 
 async function listRevisions(drive, fileId) {
   const res = await drive.revisions.list({
@@ -74,7 +76,7 @@ async function exportRevisionAsText(auth, fileId, revisionId) {
   return (res.data || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 }
 
-// ── DIFF ──────────────────────────────────────────────────────────────────────
+// DIFF 
 
 function computeDiff(prevText, currText) {
   const changes = diffWords(prevText, currText);
@@ -95,7 +97,7 @@ function computeDiff(prevText, currText) {
   };
 }
 
-// ── USER TEXT MAP ─────────────────────────────────────────────────────────────
+// USER TEXT MAP 
 // Collects text added by each user across all their revisions.
 // Uses the final document text to verify chunks still exist before including them.
 
@@ -138,7 +140,7 @@ function buildUserFinalTextMap(revisions, texts) {
   return result;
 }
 
-// ── CSV ───────────────────────────────────────────────────────────────────────
+// STORE DATA INTO CSV
 
 function csv(val) {
   if (val === null || val === undefined) return "";
@@ -170,7 +172,7 @@ function buildRevisionCSV(revisions, fileId, generatedAt) {
   return [meta, header, ...rows].join("\n");
 }
 
-// ── AI ANALYSIS ───────────────────────────────────────────────────────────────
+// AI ANALYSIS WITH GEMINI LLM
 
 async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -238,7 +240,7 @@ ${text}`;
   return results.join("\n\n");
 }
 
-// ── MAIN ──────────────────────────────────────────────────────────────────────
+// MAIN
 
 async function main() {
   const args = process.argv.slice(2);
@@ -383,17 +385,12 @@ Outputs (when --output is set):
     console.log(JSON.stringify(output, null, 2));
   }
 
-  // ── AI ANALYSIS ─────────────────────────────────────────────────────────────
+  // Checks if all editors from Google Docs are accounted for
 
   if (!geminiKey) return;
 
   console.error("Attributing final document text to users...");
   const userTextMap = buildUserFinalTextMap(revisions, texts);
-
-  // Debug: show what authors were found across all revisions
-  const allAuthors = [...new Set(revisions.map(r => r.lastModifyingUser?.displayName || "Unknown"))];
-  console.error(`Authors found in revisions: ${allAuthors.join(", ")}`);
-  console.error(`Authors in final text map: ${Object.keys(userTextMap).join(", ")}`);
 
   if (!Object.keys(userTextMap).length) {
     console.error("No text attributed to any user. Skipping AI analysis.");
@@ -406,18 +403,7 @@ Outputs (when --output is set):
     if (fs.existsSync(analysisPath)) fs.unlinkSync(analysisPath);
   }
 
-  // List available models to find correct Gemma model name for this API key
-  try {
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
-    const modelsResponse = await ai.models.list();
-    const gemmaModels = modelsResponse.models
-      .filter(m => m.name.toLowerCase().includes("gemma"))
-      .map(m => m.name);
-    console.error("Available Gemma models: " + (gemmaModels.join(", ") || "none found"));
-  } catch (listErr) {
-    console.error("Could not list models: " + listErr.message);
-  }
-
+// Save AI analysis with a given name
   try {
     const analysisText = await analyzeAIPlagiarism(userTextMap, geminiKey);
 

@@ -206,10 +206,10 @@ def render_analysis_section(story, sections, styles):
 
 CHART_META = [
     ("contribution-pie.png",                    "Overall Net Word Contribution - Pie Chart"),
-    ("contribution-step-networds.png",          "Progressive Net Word Contribution Over Time"),
-    ("contribution-step-netchars.png",          "Progressive Net Character Contribution Over Time"),
-    ("contribution-step-revision-networds.png", "Net Word Contribution by Revision Number"),
-    ("contribution-step-revision-netchars.png", "Net Character Contribution by Revision Number"),
+    ("contribution-line-networds.png",          "Progressive Net Word Contribution Over Time"),
+    ("contribution-line-netchars.png",          "Progressive Net Character Contribution Over Time"),
+    ("contribution-line-revision-networds.png", "Net Word Contribution by Revision Number"),
+    ("contribution-line-revision-netchars.png", "Net Character Contribution by Revision Number"),
 ]
 
 def build_pdf(charts_folder, analysis_path, output_path, title):
