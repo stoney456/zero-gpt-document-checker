@@ -50,7 +50,9 @@ if (btn) {
 }
 // COPY ACCOUNT TO CLIPBOARD LOGIC
  function copyAccount(btn) {
-  const email = document.getElementById('service-account').textContent;
+  // .firstChild.textContent grabs just the email string, ignoring the button element
+  const email = document.getElementById('service-account').firstChild.textContent.trim();
+  
   navigator.clipboard.writeText(email).then(() => {
     btn.textContent = 'Copied!';
     btn.classList.add('copied');
