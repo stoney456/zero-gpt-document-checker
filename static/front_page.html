@@ -20,13 +20,15 @@
     
     <div id="front-page-container">  
         
-        
         <p>Before Inserting Google Link, please ensure that you follow the following steps:</p>
-            <ul>
-                <li>Make sure the Google Doc is restricted and only accessible to authorized users.</li>
-                <li>Share the document with the email <b>'doc-checker-robot@contribution-checker.iam.gserviceaccount.com"</b>
-                or if you have a different service account in Google Cloud, use that instead.</li>
-            </ul>
+            <ol>
+                <li>Make sure the Google Doc is restricted and only accessible to authorized users.</li><br>
+                <li>Share the document with the account below or use your own service account email if you have set up your own Google Cloud project and credentials.
+                    <div id="service-account"><b>doc-checker-robot@contribution-checker.iam.gserviceaccount.com</b>
+                    <button id='copy-button' type="button" onclick="copyAccount(this)">Copy</button>
+                    </div>
+                </li>
+            </ol>
         
         <p>Insert Google document link here:</p>
         <input type="text" id="doc-url" placeholder="https://docs.google.com/document/d/...">

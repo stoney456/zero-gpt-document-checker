@@ -70,6 +70,52 @@ body {
     box-sizing: border-box; /* Keeps padding from breaking your width calculations */
 }
 
+#service-account {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #f4faf4;
+    border: 1px solid #c3e6c3;
+    border-radius: 5px;
+    padding: 8px 12px;
+    margin-top: 6px;
+}
+ 
+#service-account b {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: normal;
+    color: #2d7a2d;
+    user-select: all;
+}
+ 
+#copy-button {
+    background: none;
+    border: 1px solid #4CAF50;
+    color: #4CAF50;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-family: Calibri, sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s;
+}
+ 
+#copy-button:hover {
+    background-color: #4CAF50;
+    color: white;
+}
+ 
+#copy-button.copied {
+    background-color: #4CAF50;
+    color: white;
+}
+
+ol > li::marker {
+  font-weight: bold;
+}
+
 #doc-url {
     width: 85%;
     padding: 10px;

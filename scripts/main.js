@@ -46,6 +46,19 @@ if (btn) {
       btn.disabled = false;
     }
   });
+
+}
+// COPY ACCOUNT TO CLIPBOARD LOGIC
+ function copyAccount(btn) {
+  const email = document.getElementById('service-account').textContent;
+  navigator.clipboard.writeText(email).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
 }
 
 // === LOADING PAGE LOGIC ===
