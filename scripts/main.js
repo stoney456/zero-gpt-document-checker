@@ -73,16 +73,20 @@ if (loadingContainer) {
  
   // Map server step messages to step numbers
   const stepMap = [
-    { keyword: "Extracting",  stepId: "step-1" },
-    { keyword: "charts",      stepId: "step-2" },
-    { keyword: "Compiling",   stepId: "step-3" },
+    { keyword: "Extracting", stepId: "step-1" },
+    { keyword: "AI",         stepId: "step-2" },
+    { keyword: "charts",     stepId: "step-3" },
+    { keyword: "Compiling",  stepId: "step-4" },
   ];
  
   function updateSteps(stepMessage) {
     let activeIndex = -1;
-    stepMap.forEach((s, i) => {
-      if (stepMessage.includes(s.keyword)) activeIndex = i;
-    });
+    for (let i = stepMap.length - 1; i >= 0; i--) {
+        if (stepMessage.includes(stepMap[i].keyword)) {
+            activeIndex = i;
+            break; // Stop evaluating once the active step is found
+        }
+    }
  
     stepMap.forEach((s, i) => {
       const el = document.getElementById(s.stepId);
@@ -117,48 +121,89 @@ if (loadingContainer) {
     try {
       const res  = await fetch("/status");
       const data = await res.json();
- 
+
       if (data.status === "running") {
         statusText.textContent = data.step;
         updateSteps(data.step);
+
+        let activeIndex = -1;
+        for (let i = stepMap.length - 1; i >= 0; i--) {
+          if (data.step.includes(stepMap[i].keyword)) {
+            activeIndex = i;
+            break;
+          }
+        }
+        updateProgressBars(activeIndex, data.progress);
+
         pollTimer = setTimeout(pollStatus, 2000);
- 
+
       } else if (data.status === "done") {
         clearTimeout(pollTimer);
- 
+
         // Mark all steps as done
-        stepMap.forEach((s) => {
+        stepMap.forEach((s, i) => {
           const el = document.getElementById(s.stepId);
           if (!el) return;
           el.classList.remove("active");
           el.classList.add("done");
           el.querySelector(".step-icon").textContent = "✓";
+
+          const fill = document.getElementById(`progress-${i + 1}`);
+          if (fill) {
+            fill.classList.remove("indeterminate");
+            fill.style.width = "100%";
+          }
         });
- 
+
         statusText.textContent = "Done!";
         loadingStatusText.textContent = "Redirecting to download...";
         setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
- 
+
       } else if (data.status === "cancelled") {
         clearTimeout(pollTimer);
         window.location.href = "/front_page.html";
- 
+
       } else if (data.status === "error") {
         clearTimeout(pollTimer);
         statusText.textContent = "Error: " + data.error;
         loadingStatusText.textContent = "Please go back and try again.";
         if (cancelBtn) cancelBtn.textContent = "Go back";
       }
- 
+
     } catch {
       clearTimeout(pollTimer);
       statusText.textContent = "Could not reach the server.";
     }
   }
- 
+
+  function updateProgressBars(activeIndex, progress) {
+    stepMap.forEach((s, i) => {
+      const fill = document.getElementById(`progress-${i + 1}`);
+      if (!fill) return;
+
+      if (i < activeIndex) {
+        // Step already completed
+        fill.classList.remove("indeterminate");
+        fill.style.width = "100%";
+      } else if (i === activeIndex) {
+        // Step currently in progress
+        if (s.keyword === "AI") {
+          fill.classList.add("indeterminate");
+          fill.style.width = "";
+        } else {
+          fill.classList.remove("indeterminate");
+          fill.style.width = progress ? `${(progress.current / progress.total) * 100}%` : "0%";
+        }
+      } else {
+        // Step not started yet
+        fill.classList.remove("indeterminate");
+        fill.style.width = "0%";
+      }
+    });
+  }
+
   pollStatus();
 }
-
 
 // === DOWNLOAD PAGE LOGIC ===
 const downloadBtn = document.getElementById("download-button");

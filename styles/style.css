@@ -171,15 +171,6 @@ ol > li::marker {
     margin: 0 0 24px 0;
 }
  
-.spinner {
-    width: 48px;
-    height: 48px;
-    border: 5px solid #e0e0e0;
-    border-top-color: #4CAF50;
-    border-radius: 50%;
-    animation: spin 0.9s linear infinite;
-    margin: 0 auto 24px auto;
-}
  
 #progress-steps {
     list-style: none;
@@ -192,13 +183,23 @@ ol > li::marker {
  
 #progress-steps li {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0;
     font-size: 15px;
     color: #aaa;
     border-bottom: 1px solid #f0f0f0;
     transition: color 0.3s;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.step-text {
+    flex: 1;
 }
  
 #progress-steps li:last-child {
@@ -262,6 +263,29 @@ ol > li::marker {
     color: white;
     border-color: #e53e3e;
     background: #e53e3e;
+}
+
+.progress-track {
+  margin-top: 0;
+  height: 6px;
+  width: 100%;
+  background: #ddd;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4CAF50;
+  transition: width 0.3s ease;
+}
+.progress-fill.indeterminate {
+  width: 40%;
+  animation: indeterminate-slide 1.2s ease-in-out infinite;
+}
+@keyframes indeterminate-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
 }
 
 /*DOWNLOAD PAGE*/

@@ -46,28 +46,29 @@ function extractDocId(input) {
  * Wraps a spawned child process in a Promise.
  * Resolves on exit code 0, rejects otherwise.
  */
-function runScript(command, args) {
+function runScript(command, args, onData) {
   return new Promise((resolve, reject) => {
-    // Use shell: false so we get the actual process PID for killing
     const proc = spawn(command, args, { 
       cwd: ROOT, 
       shell: true, 
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     });
     currentProc = proc;
-
-    proc.stdout.on('data', (data) => console.log(`[Script]: ${data.toString().trim()}`));
-    proc.stderr.on('data', (data) => console.error(`[Script Err]: ${data.toString().trim()}`));
-
+    const handleChunk = (data) => {
+      const text = data.toString().trim();
+      const match = text.match(/\[Progress\]\s*(\d+)\/(\d+)/);
+      if (match && onData) {
+        onData({ progress: { current: parseInt(match[1], 10), total: parseInt(match[2], 10) } });
+      }
+      if (onData) onData({ text });
+    };
+    proc.stdout.on('data', (data) => { console.log(`[Script]: ${data.toString().trim()}`); handleChunk(data); });
+    proc.stderr.on('data', (data) => { console.error(`[Script Err]: ${data.toString().trim()}`); handleChunk(data); });
     proc.on('close', (code) => {
       currentProc = null;
-      if (code === 0 || code === null) {
-        resolve();
-      } else {
-        reject(new Error(`Script exited with code ${code}`));
-      }
+      if (code === 0 || code === null) resolve();
+      else reject(new Error(`Script exited with code ${code}`));
     });
-
     proc.on('error', (err) => {
       currentProc = null;
       reject(new Error(`Failed to spawn process: ${err.message}`));
@@ -124,9 +125,11 @@ app.get('/debug', (req, res) => {
 // ── POST /analyze — start the pipeline ───────────────────────────────────────
 
 app.post('/analyze', (req, res) => {
+  console.log('[Analyze] POST /analyze received, body:', req.body);
   const { docUrl } = req.body;
 
   if (!docUrl) {
+    console.log('[Analyze] Error: Missing Google Doc URL');
     return res.status(400).json({ error: 'Missing Google Doc URL.' });
   }
 
@@ -148,45 +151,62 @@ app.post('/analyze', (req, res) => {
   res.json({ status: 'started', jobId });
 
   (async () => {
+    console.log(`[Pipeline] Job ${jobId} starting...`);
     try {
+      jobs[jobId].progress = null;
       // STEP 1: analysis.js 
+      console.log(`[Pipeline] Job ${jobId} - Starting STEP 1: analysis.js`);
       await runScript('node', [
         path.join(SCRIPTS, 'analysis.js'),
         cleanDocId,
         '--output', path.join(jobDir, 'report'),
-      ]);
-
+      ], (msg) => {
+        if (msg.progress) jobs[jobId].progress = msg.progress;
+        if (msg.text && msg.text.includes('Extraction complete')) {
+          jobs[jobId].step = 'Running AI analysis on text...';
+          jobs[jobId].progress = null;
+        }
+      });
+      console.log(`[Pipeline] Job ${jobId} - STEP 1 complete`);
       // STEP 2: charts.py 
+      console.log(`[Pipeline] Job ${jobId} - Starting STEP 2: charts.py`);
       jobs[jobId].step = 'Generating contribution charts...';
+      jobs[jobId].progress = null;
       await runScript('python', [
         'charts.py',
         '--summary',   path.join(jobDir, 'report-summary.csv'),
         '--revisions', path.join(jobDir, 'report-revisions.csv'),
         '--output',    jobDir,
-      ]);
-
+      ], (msg) => {
+        if (msg.progress) jobs[jobId].progress = msg.progress;
+      });
+      console.log(`[Pipeline] Job ${jobId} - STEP 2 complete`);
       // STEP 3: report.py 
+      console.log(`[Pipeline] Job ${jobId} - Starting STEP 3: report.py`);
       jobs[jobId].step = 'Compiling PDF report...';
+      jobs[jobId].progress = null;
       const reportArgs = [
         'report.py',
         '--charts',  `"${jobDir}"`,
         '--output',  `"${path.join(jobDir, 'report.pdf')}"`,
         '--title',   '"Academic Contribution & Plagiarism Report"',
       ];
-
       const analysisFile = path.join(jobDir, 'report-ai-analysis.txt');
       if (fs.existsSync(analysisFile)) {
         reportArgs.push('--analysis', `"${analysisFile}"`);
       }
-
-      await runScript('python', reportArgs);
+      await runScript('python', reportArgs, (msg) => {
+        if (msg.progress) jobs[jobId].progress = msg.progress;
+      });
+      console.log(`[Pipeline] Job ${jobId} - STEP 3 complete`);
 
       jobs[jobId].status = 'done';
       jobs[jobId].step = 'Complete';
       console.log(`[Pipeline]: Job ${jobId} complete.`);
 
     } catch (err) {
-      console.error(`[Pipeline Error] Job ${jobId}:`, err.message);
+      console.error(`[Pipeline Error] Job ${jobId}: ${err.message}`);
+      console.error(`[Pipeline Error] Stack:`, err.stack);
       jobs[jobId].status = 'error';
       jobs[jobId].error = err.message || 'An unexpected error occurred.';
     }
@@ -218,10 +238,9 @@ app.post('/cancel', (req, res) => {
 // ── GET /status ───────────────────────────────────────────────────────────────
 
 app.get('/status', (req, res) => {
-  if (!currentJobId || !jobs[currentJobId]) {
-    return res.json({ status: 'idle' });
-  }
-  res.json(jobs[currentJobId]);
+  if (!currentJobId || !jobs[currentJobId]) return res.json({ status: 'idle' });
+  const job = jobs[currentJobId];
+  res.json({ status: job.status, step: job.step, progress: job.progress, error: job.error });
 });
 
 // ── GET /download ─────────────────────────────────────────────────────────────

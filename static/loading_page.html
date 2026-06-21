@@ -11,22 +11,37 @@
     <div id="loading-page-container">
         <h1>Analysing Document...</h1>
 
-        <div class="spinner"></div>
-                <ul id="progress-steps">
-            <li id="step-1" class="active">
-                <span class="step-icon">1</span>
-                Extracting revision history + text + AI analysis...
+        <ul id="progress-steps">
+             <li id="step-1" class="active">
+                 <div class="step-header">
+                     <span class="step-icon">1</span>
+                     <span class="step-text">Extracting revision history and text...</span>
+                 </div>
+                 <div class="progress-track"><div class="progress-fill" id="progress-1"></div></div>
             </li>
             <li id="step-2">
-                <span class="step-icon">2</span>
-                Generating Charts...
+                <div class="step-header">
+                    <span class="step-icon">2</span>
+                    <span class="step-text">Running AI analysis...</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill indeterminate" id="progress-2"></div></div>
             </li>
             <li id="step-3">
-                <span class="step-icon">3</span>
-                Compiling PDF report
+                <div class="step-header">
+                    <span class="step-icon">3</span>
+                    <span class="step-text">Generating Charts...</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" id="progress-3"></div></div>
+            </li>
+            <li id="step-4">
+                <div class="step-header">
+                    <span class="step-icon">4</span>
+                    <span class="step-text">Compiling PDF report...</span>
+                </div>
+                <div class="progress-track"><div class="progress-fill" id="progress-4"></div></div>
             </li>
         </ul>
-
+        
         <div id="status-text"></div>
         <div id="loading-status-text">This would take some time...</div>
         <button id="cancel-button">Cancel and go back</button>

@@ -308,6 +308,7 @@ Outputs (when --output is set):
       texts.push(null);
     }
     if (i < revisions.length - 1) await new Promise((r) => setTimeout(r, 5000));
+    console.error(`[Progress] ${i+1}/${revisions.length}`);
   }
 
   const revisionEntries = [];
@@ -385,6 +386,7 @@ Outputs (when --output is set):
     console.log(JSON.stringify(output, null, 2));
   }
 
+  console.error('[Status] Extraction complete. Starting AI plagiarism analysis...');
   // Checks if all editors from Google Docs are accounted for
 
   if (!geminiKey) return;

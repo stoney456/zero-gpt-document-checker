@@ -222,7 +222,19 @@ def build_pdf(charts_folder, analysis_path, output_path, title):
     )
 
     story = []
-    generated = datetime.now().strftime("%d %B %Y, %H:%M SGT")
+    generated = None
+
+    # Ensures that the report shows exact time generated in SGT
+    if analysis_path and os.path.exists(analysis_path):
+        with open(analysis_path, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("Generated:"):
+                    generated = line.replace("Generated:", "").strip()
+                    break
+    if not generated:
+        from datetime import timezone, timedelta
+        sgt = timezone(timedelta(hours=8))
+        generated = datetime.now(sgt).strftime("%d %B %Y, %H:%M SGT")
 
     # Cover
     story.append(Spacer(1, 2 * cm))
@@ -230,6 +242,7 @@ def build_pdf(charts_folder, analysis_path, output_path, title):
     story.append(Paragraph(f"Generated: {generated}", styles["ReportSubtitle"]))
     story.append(hr())
     story.append(Spacer(1, 0.5 * cm))
+    print("[PDF-PROGRESS] 1/4")
 
     # Charts
     story.append(Paragraph("Contribution Charts", styles["SectionHeading"]))
@@ -252,6 +265,7 @@ def build_pdf(charts_folder, analysis_path, output_path, title):
             "No chart files found. Run charts.py first to generate them.",
             styles["AnalysisBody"]
         ))
+    print("[PDF-PROGRESS] 2/4")
 
     # AI Analysis
     story.append(PageBreak())
@@ -279,7 +293,9 @@ def build_pdf(charts_folder, analysis_path, output_path, title):
         ))
 
     doc.build(story)
+    print("[PDF-PROGRESS] 4/4")
     print(f"PDF report saved: {output_path}")
+    
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
