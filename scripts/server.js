@@ -11,9 +11,6 @@ const ws = require('ws');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 
-console.log('[Supabase] URL:', supabaseUrl);
-console.log('[Supabase] Key prefix:', supabaseKey?.slice(0, 20));
-
 const supabase = createClient(supabaseUrl, supabaseKey, {
   realtime: {
     transport: ws,
@@ -144,11 +141,7 @@ app.post('/analyze', (req, res) => {
   console.log('[Analyze] POST /analyze received, body:', req.body);
   const { docUrl } = req.body;
 
-  console.log('[Env] Path:', path.resolve(__dirname, '..', '.env'));
-  console.log('[Env] Exists:', fs.existsSync(path.resolve(__dirname, '..', '.env')));
-  console.log('[Supabase] URL:', supabaseUrl);
-  console.log('[Supabase] Key prefix:', supabaseKey?.slice(0, 20));
-  
+
   if (!docUrl) {
     console.log('[Analyze] Error: Missing Google Doc URL');
     return res.status(400).json({ error: 'Missing Google Doc URL.' });
@@ -339,7 +332,7 @@ app.get('/history', async (req, res) => {
 });
 
 app.get('/history_page.html', (req, res) => {
-  res.send(fs.readFileSync(path.join(STATIC, 'history_page.html'), 'utf8'));
+  sendFileContent(res, path.join(STATIC, 'history_page.html'), 'text/html');
 });
 
 // POST /cancel - cancel currently running jobs (if any)
