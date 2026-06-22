@@ -7,7 +7,9 @@ if (btn) {
   const statusText = document.getElementById("status-text");
 
   function setStatus(msg) {
-    statusText.textContent = msg;
+    if (statusText) {
+      statusText.textContent = msg;
+    }
   }
 
   btn.addEventListener("click", async () => {
@@ -61,6 +63,11 @@ if (btn) {
       btn.classList.remove('copied');
     }, 2000);
   });
+}
+
+function setStatus(msg) {
+  const statusText = document.getElementById("status-text");
+  if (statusText) statusText.textContent = msg;
 }
 
 // === LOADING PAGE LOGIC ===
@@ -211,4 +218,47 @@ if (downloadBtn) {
   downloadBtn.addEventListener("click", () => {
     window.location.href = "/download";
   });
+}
+
+// History Page Download
+const historyList = document.getElementById("history-list");
+if (historyList) {
+  (async () => {
+    try {
+      const res = await fetch("/history");
+      const data = await res.json();
+
+      if (!data.jobs || !data.jobs.length) {
+        historyList.innerHTML = "<p>No past analyses found.</p>";
+        return;
+      }
+
+      data.jobs.forEach((job) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const userCount = job.user_summary ? job.user_summary.length : 0;
+
+        const fileLinks = [
+          { url: job.downloadUrl,     label: "PDF Report" },
+          { url: job.csvSummaryUrl,   label: "Summary CSV" },
+          { url: job.csvRevisionsUrl, label: "Revisions CSV" },
+          { url: job.aiAnalysisUrl,   label: "AI Analysis" },
+        ]
+        .filter(f => f.url)
+        .map(f => `<a href="${f.url}" class="download-link" target="_blank">${f.label}</a>`)
+        .join("");
+
+        card.innerHTML = `
+          <h3>${job.title}</h3>
+          <p class="history-meta">Generated: ${job.generated_at}</p>
+          <p class="history-meta">Contributors: ${userCount}</p>
+          <div class="download-links">${fileLinks}</div>
+        `;
+        historyList.appendChild(card);
+      });
+    } catch {
+      historyList.innerHTML = "<p>Could not load history.</p>";
+    }
+  })();
 }

@@ -326,6 +326,20 @@ ol > li::marker {
     text-decoration: none;
 }
  
+#back-home-button {
+    display: inline;
+    margin-top: 16px;
+    color: #888;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s ease;
+}
+
+#back-home-button:hover {
+    color: #555;
+    text-decoration: underline;
+}
+
 #download-page-container a:hover {
     color: #4CAF50;
 }
@@ -333,4 +347,49 @@ ol > li::marker {
 /* ── ANIMATIONS ───────────────────────────────────────────────────────────── */
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+
+#history-page-container {
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.history-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.history-card h3 {
+  margin: 0 0 8px 0;
+}
+
+.history-meta {
+  margin: 2px 0;
+  color: #555;
+  font-size: 0.9em;
+}
+
+.download-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.download-unavailable {
+  display: inline-block;
+  margin-top: 10px;
+  color: #999;
+  font-style: italic;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 20px;
+  color: #4CAF50;
 }

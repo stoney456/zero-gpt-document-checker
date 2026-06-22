@@ -4,6 +4,22 @@ const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
+
+// SUPABASE CONNECTION
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+
+console.log('[Supabase] URL:', supabaseUrl);
+console.log('[Supabase] Key prefix:', supabaseKey?.slice(0, 20));
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  realtime: {
+    transport: ws,
+  },
+});
+
 
 const app = express();
 app.use(express.json());
@@ -128,6 +144,11 @@ app.post('/analyze', (req, res) => {
   console.log('[Analyze] POST /analyze received, body:', req.body);
   const { docUrl } = req.body;
 
+  console.log('[Env] Path:', path.resolve(__dirname, '..', '.env'));
+  console.log('[Env] Exists:', fs.existsSync(path.resolve(__dirname, '..', '.env')));
+  console.log('[Supabase] URL:', supabaseUrl);
+  console.log('[Supabase] Key prefix:', supabaseKey?.slice(0, 20));
+  
   if (!docUrl) {
     console.log('[Analyze] Error: Missing Google Doc URL');
     return res.status(400).json({ error: 'Missing Google Doc URL.' });
@@ -181,6 +202,7 @@ app.post('/analyze', (req, res) => {
         if (msg.progress) jobs[jobId].progress = msg.progress;
       });
       console.log(`[Pipeline] Job ${jobId} - STEP 2 complete`);
+
       // STEP 3: report.py 
       console.log(`[Pipeline] Job ${jobId} - Starting STEP 3: report.py`);
       jobs[jobId].step = 'Compiling PDF report...';
@@ -200,6 +222,77 @@ app.post('/analyze', (req, res) => {
       });
       console.log(`[Pipeline] Job ${jobId} - STEP 3 complete`);
 
+      // STEP 4: Upload files to supabase
+      try {
+        const reportJsonPath = path.join(jobDir, 'report.json');
+        console.log('[History]: report.json exists:', fs.existsSync(reportJsonPath));
+        console.log('[History]: jobDir:', jobDir);
+        const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
+        console.log('[History]: report.json parsed successfully');
+        console.log('[History]: generatedAt:', reportJson.generatedAt);
+        console.log('[History]: fileId:', reportJson.fileId);
+        console.log('[History]: userSummary type:', typeof reportJson.userSummary);
+        console.log('[History]: Key prefix:', supabaseKey?.slice(0, 20));
+
+        const { data: bucketData, error: bucketErr } = await supabase.storage.getBucket('report');
+        console.log('[History]: Bucket check:', JSON.stringify(bucketData), JSON.stringify(bucketErr));
+
+        const timestamp = reportJson.generatedAt.replace(/[^0-9]/g, '-').slice(0, 10);
+        const base = `${jobId}`;
+
+        const filesToUpload = [
+          { local: path.join(jobDir, 'report.pdf'),                              storage: `${base}/Contribution_Report_${timestamp}.pdf`, contentType: 'application/pdf' },
+          { local: path.join(jobDir, 'report-summary.csv'),                      storage: `${base}/report-summary.csv`,                   contentType: 'text/csv' },
+          { local: path.join(jobDir, 'report-revisions.csv'),                    storage: `${base}/report-revisions.csv`,                 contentType: 'text/csv' },
+          { local: path.join(jobDir, 'report-ai-analysis.txt'),                  storage: `${base}/report-ai-analysis.txt`,               contentType: 'text/plain' },
+          { local: path.join(jobDir, 'report.json'),                             storage: `${base}/report.json`,                          contentType: 'application/json' },
+          { local: path.join(jobDir, 'contribution-pie.png'),                    storage: `${base}/contribution-pie.png`,                 contentType: 'image/png' },
+          { local: path.join(jobDir, 'contribution-line-networds.png'),          storage: `${base}/contribution-line-networds.png`,       contentType: 'image/png' },
+          { local: path.join(jobDir, 'contribution-line-netchars.png'),          storage: `${base}/contribution-line-netchars.png`,       contentType: 'image/png' },
+          { local: path.join(jobDir, 'contribution-line-revision-networds.png'), storage: `${base}/contribution-line-revision-networds.png`, contentType: 'image/png' },
+          { local: path.join(jobDir, 'contribution-line-revision-netchars.png'), storage: `${base}/contribution-line-revision-netchars.png`, contentType: 'image/png' },
+        ];
+
+        for (const f of filesToUpload) {
+          if (!fs.existsSync(f.local)) {
+            console.log('[History]: Skipping missing file:', f.local);
+            continue;
+          }
+          console.log('[History]: Uploading', f.storage);
+          const buffer = fs.readFileSync(f.local);
+          const { error: uploadErr } = await supabase.storage
+            .from('report')
+            .upload(f.storage, buffer, { contentType: f.contentType, upsert: true });
+          if (uploadErr) {
+            console.error('[History]: Upload failed for', f.storage, ':', uploadErr.message);
+            throw uploadErr;
+          }
+          console.log('[History]: Uploaded', f.storage);
+        }
+
+        console.log('[History]: All files uploaded, inserting DB row...');
+        const { error: dbErr } = await supabase.from('history').upsert({
+          id: jobId,
+          doc_id: reportJson.fileId,
+          title: 'Academic Contribution & Plagiarism Report',
+          generated_at: reportJson.generatedAt,
+          user_summary: JSON.stringify(reportJson.userSummary),
+          pdf_path:           `${base}/Contribution_Report_${timestamp}.pdf`,
+          csv_summary_path:   `${base}/report-summary.csv`,
+          csv_revisions_path: `${base}/report-revisions.csv`,
+          ai_analysis_path:   `${base}/report-ai-analysis.txt`,
+          json_path:          `${base}/report.json`,
+        });
+        if (dbErr) {
+          console.error('[History]: DB upsert failed:', dbErr.message);
+          throw dbErr;
+        }
+        console.log('[History]: Job', jobId, 'saved to Supabase successfully.');
+      } catch (histErr) {
+        console.error('[History Error] Job', jobId, ':', histErr.message);
+      }
+
+      // Mark job as done
       jobs[jobId].status = 'done';
       jobs[jobId].step = 'Complete';
       console.log(`[Pipeline]: Job ${jobId} complete.`);
@@ -212,6 +305,43 @@ app.post('/analyze', (req, res) => {
     }
   })();
 });
+
+// GET /history - fetch all past analyses from Supabase
+app.get('/history', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('history')
+      .select('id, doc_id, title, generated_at, user_summary, pdf_path, csv_summary_path, csv_revisions_path, ai_analysis_path, json_path')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const sign = async (storagePath) => {
+      if (!storagePath) return null;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from('report')
+        .createSignedUrl(storagePath, 60 * 60);
+      return signErr ? null : signed.signedUrl;
+    };
+
+    const withUrls = await Promise.all(data.map(async (job) => ({
+      ...job,
+      downloadUrl:     await sign(job.pdf_path),
+      csvSummaryUrl:   await sign(job.csv_summary_path),
+      csvRevisionsUrl: await sign(job.csv_revisions_path),
+      aiAnalysisUrl:   await sign(job.ai_analysis_path),
+    })));
+
+    res.json({ jobs: withUrls });
+  } catch (err) {
+    console.error('[History Fetch Error]:', err.message);
+    res.status(500).json({ error: 'Could not load history.' });
+  }
+});
+
+app.get('/history_page.html', (req, res) => {
+  res.send(fs.readFileSync(path.join(STATIC, 'history_page.html'), 'utf8'));
+});
+
 // POST /cancel - cancel currently running jobs (if any)
 app.post('/cancel', (req, res) => {
   if (!currentJobId || !jobs[currentJobId] || jobs[currentJobId].status !== 'running') {
