@@ -331,6 +331,39 @@ app.get('/history', async (req, res) => {
   }
 });
 
+// DELETE /history/:id - delete a job from Supabase storage and DB
+app.delete('/history/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // List all files in the job's storage folder
+    const { data: files, error: listErr } = await supabase.storage
+      .from('report')
+      .list(id);
+    if (listErr) throw listErr;
+
+    if (files && files.length > 0) {
+      const paths = files.map(f => `${id}/${f.name}`);
+      const { error: removeErr } = await supabase.storage
+        .from('report')
+        .remove(paths);
+      if (removeErr) throw removeErr;
+      console.log(`[Delete] Removed ${paths.length} file(s) from storage for job ${id}`);
+    }
+
+    // Delete the DB row
+    const { error: dbErr } = await supabase
+      .from('history')
+      .delete()
+      .eq('id', id);
+    if (dbErr) throw dbErr;
+
+    console.log(`[Delete] Job ${id} deleted from DB.`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[Delete Error] Job ${id}:`, err.message);
+    res.status(500).json({ error: 'Could not delete job.' });
+  }
+});
 app.get('/history_page.html', (req, res) => {
   sendFileContent(res, path.join(STATIC, 'history_page.html'), 'text/html');
 });

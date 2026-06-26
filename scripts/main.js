@@ -1,6 +1,6 @@
 // scripts/main.js
 
-// === FRONT PAGE LOGIC ===
+//FRONT PAGE LOGIC
 const btn = document.getElementById("start-button");
 if (btn) {
   const urlInput   = document.getElementById("doc-url");
@@ -70,7 +70,7 @@ function setStatus(msg) {
   if (statusText) statusText.textContent = msg;
 }
 
-// === LOADING PAGE LOGIC ===
+// LOADING PAGE LOGIC
 const loadingContainer = document.getElementById("loading-page-container");
 if (loadingContainer) {
   const statusText        = document.getElementById("status-text");
@@ -182,7 +182,7 @@ if (loadingContainer) {
       statusText.textContent = "Could not reach the server.";
     }
   }
-
+  // Progress bar logic
   function updateProgressBars(activeIndex, progress) {
     stepMap.forEach((s, i) => {
       const fill = document.getElementById(`progress-${i + 1}`);
@@ -212,7 +212,7 @@ if (loadingContainer) {
   pollStatus();
 }
 
-// === DOWNLOAD PAGE LOGIC ===
+// DOWNLOAD PAGE LOGIC
 const downloadBtn = document.getElementById("download-button");
 if (downloadBtn) {
   downloadBtn.addEventListener("click", () => {
@@ -237,7 +237,8 @@ if (historyList) {
         const card = document.createElement("div");
         card.className = "history-card";
 
-        const userCount = job.user_summary ? job.user_summary.length : 0;
+        const folderId = job.id;
+        const googleDocId = job.doc_id || 'Unknown Doc ID';
 
         const fileLinks = [
           { url: job.downloadUrl,     label: "PDF Report" },
@@ -248,14 +249,30 @@ if (historyList) {
         .filter(f => f.url)
         .map(f => `<a href="${f.url}" class="download-link" target="_blank">${f.label}</a>`)
         .join("");
-
+        // For each analysis, a section is added with relevant information and files
         card.innerHTML = `
-          <h3>${job.title}</h3>
+          <h3>${job.title} (${folderId})</h3>
           <p class="history-meta">Generated: ${job.generated_at}</p>
-          <p class="history-meta">Contributors: ${userCount}</p>
+          <p class="history-meta">Google Doc ID: ${googleDocId}</p>
           <div class="download-links">${fileLinks}</div>
+          <button class="delete-button" data-id="${folderId}" type="button">Delete</button>
         `;
         historyList.appendChild(card);
+
+        // Delete button behaviour
+      
+        card.querySelector('.delete-button').addEventListener('click', async (e) => {
+        const jobId = e.currentTarget.dataset.id;
+        if (!confirm('Delete this analysis? This cannot be undone.')) return;
+        try {
+          const r = await fetch(`/history/${jobId}`, { method: 'DELETE' });
+          const result = await r.json();
+          if (result.success) card.remove();
+          else alert('Delete failed: ' + result.error);
+        } catch {
+          alert('Delete failed.');
+        }
+      });
       });
     } catch {
       historyList.innerHTML = "<p>Could not load history.</p>";
