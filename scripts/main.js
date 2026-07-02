@@ -245,6 +245,7 @@ if (historyList) {
           { url: job.csvSummaryUrl,   label: "Summary CSV" },
           { url: job.csvRevisionsUrl, label: "Revisions CSV" },
           { url: job.aiAnalysisUrl,   label: "AI Analysis" },
+          { url: job.userTextUrl,    label: "User Text" },
         ]
         .filter(f => f.url)
         .map(f => `<a href="${f.url}" class="download-link" target="_blank">${f.label}</a>`)

@@ -238,6 +238,7 @@ app.post('/analyze', (req, res) => {
           { local: path.join(jobDir, 'report-summary.csv'),                      storage: `${base}/report-summary.csv`,                   contentType: 'text/csv' },
           { local: path.join(jobDir, 'report-revisions.csv'),                    storage: `${base}/report-revisions.csv`,                 contentType: 'text/csv' },
           { local: path.join(jobDir, 'report-ai-analysis.txt'),                  storage: `${base}/report-ai-analysis.txt`,               contentType: 'text/plain' },
+          { local: path.join(jobDir, 'report-user-text.txt'),                    storage: `${base}/report-user-text.txt`,                 contentType: 'text/plain' },
           { local: path.join(jobDir, 'report.json'),                             storage: `${base}/report.json`,                          contentType: 'application/json' },
           { local: path.join(jobDir, 'contribution-pie.png'),                    storage: `${base}/contribution-pie.png`,                 contentType: 'image/png' },
           { local: path.join(jobDir, 'contribution-line-networds.png'),          storage: `${base}/contribution-line-networds.png`,       contentType: 'image/png' },
@@ -274,6 +275,7 @@ app.post('/analyze', (req, res) => {
           csv_summary_path:   `${base}/report-summary.csv`,
           csv_revisions_path: `${base}/report-revisions.csv`,
           ai_analysis_path:   `${base}/report-ai-analysis.txt`,
+          user_text_path:     `${base}/report-user-text.txt`,
           json_path:          `${base}/report.json`,
         });
         if (dbErr) {
@@ -304,7 +306,7 @@ app.get('/history', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('history')
-      .select('id, doc_id, title, generated_at, user_summary, pdf_path, csv_summary_path, csv_revisions_path, ai_analysis_path, json_path')
+      .select('id, doc_id, title, generated_at, user_summary, pdf_path, csv_summary_path, csv_revisions_path, ai_analysis_path, json_path, user_text_path')
       .order('created_at', { ascending: false });
     if (error) throw error;
 
@@ -322,6 +324,7 @@ app.get('/history', async (req, res) => {
       csvSummaryUrl:   await sign(job.csv_summary_path),
       csvRevisionsUrl: await sign(job.csv_revisions_path),
       aiAnalysisUrl:   await sign(job.ai_analysis_path),
+      userTextUrl:     await sign(job.user_text_path),
     })));
 
     res.json({ jobs: withUrls });
@@ -391,7 +394,7 @@ app.post('/cancel', (req, res) => {
   res.json({ message: 'Job cancelled.' });
 });
 
-// ── GET /status ───────────────────────────────────────────────────────────────
+// GET /status
 
 app.get('/status', (req, res) => {
   if (!currentJobId || !jobs[currentJobId]) return res.json({ status: 'idle' });
@@ -399,7 +402,7 @@ app.get('/status', (req, res) => {
   res.json({ status: job.status, step: job.step, progress: job.progress, error: job.error });
 });
 
-// ── GET /download ─────────────────────────────────────────────────────────────
+// GET /download 
 
 app.get('/download', (req, res) => {
   if (!currentJobId) {
@@ -415,7 +418,7 @@ app.get('/download', (req, res) => {
   }
 });
 
-// ── START ─────────────────────────────────────────────────────────────────────
+// START 
 
 const PORT = 3000;
 app.listen(PORT, () => {

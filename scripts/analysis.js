@@ -159,7 +159,7 @@ function buildSummaryCSV(userSummary, fileId, generatedAt) {
   );
   return [meta, header, ...rows].join("\n");
 }
-
+// Store extracted data into a csv file to be later used to create charts for user contribution analysis
 function buildRevisionCSV(revisions, fileId, generatedAt) {
   const meta = `# Google Docs Revision Detail\n# File ID: ${fileId}\n# Generated: ${generatedAt}\n#`;
   const header = "Revision Index,Revision ID,Modified Time (SGT),Name,Email,Is First Revision,Has Changes,Words Added,Words Removed,Net Words,Chars Added,Chars Removed,Error";
@@ -170,6 +170,12 @@ function buildRevisionCSV(revisions, fileId, generatedAt) {
      csv(r.error ?? "")].join(",")
   );
   return [meta, header, ...rows].join("\n");
+}
+
+function buildUserTextFile(userFinalTextMap) {
+  return Object.entries(userFinalTextMap)
+    .map(([author, text]) => `${author}:\n${text}`)
+    .join("\n\n---\n\n");
 }
 
 // AI ANALYSIS WITH GEMINI LLM
@@ -265,6 +271,7 @@ Outputs (when --output is set):
   const fileId     = args[0];
   const rawOutput  = args.includes("--output") ? args[args.indexOf("--output") + 1] : null;
   const outputBase = rawOutput ? rawOutput.replace(/\.(json|csv)$/i, "") : null;
+  const outputDir  = outputBase ? path.dirname(outputBase) : null;
   const fromRevId  = args.includes("--from")   ? args[args.indexOf("--from") + 1]   : null;
   const toRevId    = args.includes("--to")     ? args[args.indexOf("--to") + 1]     : null;
 
@@ -377,11 +384,19 @@ Outputs (when --output is set):
     revisions: revisionEntries,
   };
 
+  const userTextMap = buildUserFinalTextMap(revisions, texts);
+
   if (outputBase) {
     fs.writeFileSync(`${outputBase}.json`,          JSON.stringify(output, null, 2), "utf8");
     fs.writeFileSync(`${outputBase}-summary.csv`,   buildSummaryCSV(userSummary, fileId, generatedAt), "utf8");
     fs.writeFileSync(`${outputBase}-revisions.csv`, buildRevisionCSV(revisionEntries, fileId, generatedAt), "utf8");
+
+    const userTextContent = buildUserTextFile(userTextMap);
+    const userTextPath = path.join(outputDir || ".", "report-user-text.txt");
+    fs.writeFileSync(userTextPath, userTextContent, "utf8");
+
     console.error(`Revision outputs saved: ${outputBase}.json, ${outputBase}-summary.csv, ${outputBase}-revisions.csv`);
+    console.error(`User text saved: ${userTextPath}`);
   } else {
     console.log(JSON.stringify(output, null, 2));
   }
@@ -392,7 +407,6 @@ Outputs (when --output is set):
   if (!geminiKey) return;
 
   console.error("Attributing final document text to users...");
-  const userTextMap = buildUserFinalTextMap(revisions, texts);
 
   if (!Object.keys(userTextMap).length) {
     console.error("No text attributed to any user. Skipping AI analysis.");
