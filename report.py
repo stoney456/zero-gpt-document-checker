@@ -210,6 +210,7 @@ CHART_META = [
     ("contribution-line-netchars.png",          "Progressive Net Character Contribution Over Time"),
     ("contribution-line-revision-networds.png", "Net Word Contribution by Revision Number"),
     ("contribution-line-revision-netchars.png", "Net Character Contribution by Revision Number"),
+    ("contribution-heatmap-networds.png",       "Contribution Heatmap by Date and Contributor"),
 ]
 
 def build_pdf(charts_folder, analysis_path, output_path, title):

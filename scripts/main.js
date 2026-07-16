@@ -229,7 +229,7 @@ if (historyList) {
       const data = await res.json();
 
       if (!data.jobs || !data.jobs.length) {
-        historyList.innerHTML = "<p>No past analyses found.</p>";
+        historyList.innerHTML = "<p>No past analysis found.</p>";
         return;
       }
 
@@ -239,6 +239,10 @@ if (historyList) {
 
         const folderId = job.id;
         const googleDocId = job.doc_id || 'Unknown Doc ID';
+        const rawTitle = (job.displayTitle || job.title || '').trim();
+        const cardTitle = rawTitle && rawTitle !== 'Academic Contribution & Plagiarism Report'
+          ? rawTitle
+          : (googleDocId !== 'Unknown Doc ID' ? googleDocId : 'Untitled document');
 
         const fileLinks = [
           { url: job.downloadUrl,     label: "PDF Report" },
@@ -248,11 +252,11 @@ if (historyList) {
           { url: job.userTextUrl,    label: "User Text" },
         ]
         .filter(f => f.url)
-        .map(f => `<a href="${f.url}" class="download-link" target="_blank">${f.label}</a>`)
+        .map(f => `<button class="history-file-button" type="button" onclick="window.open('${f.url}', '_blank')">${f.label}</button>`)
         .join("");
         // For each analysis, a section is added with relevant information and files
         card.innerHTML = `
-          <h3>${job.title} (${folderId})</h3>
+          <h3>${cardTitle} <span class="history-job-id">(${folderId})</span></h3>
           <p class="history-meta">Generated: ${job.generated_at}</p>
           <p class="history-meta">Google Doc ID: ${googleDocId}</p>
           <div class="download-links">${fileLinks}</div>

@@ -70,6 +70,19 @@ async function listRevisions(drive, fileId) {
   return res.data.revisions || [];
 }
 
+async function getFileMetadata(drive, fileId) {
+  try {
+    const res = await drive.files.get({
+      fileId,
+      fields: "name,mimeType",
+    });
+    return res.data || null;
+  } catch (err) {
+    console.error(`Could not fetch document metadata for ${fileId}: ${err.message}`);
+    return null;
+  }
+}
+
 async function exportRevisionAsText(auth, fileId, revisionId) {
   const url = `https://docs.google.com/feeds/download/documents/export/Export?id=${fileId}&revision=${revisionId}&exportFormat=txt`;
   const res = await auth.request({ url, method: "GET", responseType: "text" });
@@ -182,45 +195,67 @@ function buildUserTextFile(userFinalTextMap) {
 
 async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const MAX_CHARS = 20000;
 
-  const perUserPrompt = (name, text) => `You are an expert at detecting AI-generated text.
-Analyze the following text written by "${name}" for AI plagiarism.
-Your output must not have any markdown formatting or HTML tags.
-Follow this format exactly:
+  // Retry wrapper for transient 500/503 errors on Gemma endpoints
+  async function withRetry(fn, retries = 4, baseDelay = 1500) {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        const isRetryable = err.message?.includes("500") || err.message?.includes("503") || err.message?.includes("INTERNAL");
+        if (i === retries || !isRetryable) throw err;
+        const delay = baseDelay * Math.pow(2, i);
+        console.error(`Retrying after ${delay}ms (attempt ${i + 1}/${retries})...`);
+        await new Promise((res) => setTimeout(res, delay));
+      }
+    }
+  }
 
-User: ${name}
+  const perUserPrompt = (name, text) => {
+    const trimmedText = text.length > MAX_CHARS
+      ? text.slice(0, MAX_CHARS) + "\n[...truncated]"
+      : text;
 
-AI Plagiarism Percentage: XX% (Low / Medium / High)
+    return `You are an expert at detecting AI-generated text.
+    Analyze the following text written by "${name}" for AI plagiarism.
+    Your output must not have any markdown formatting or HTML tags.
+    Follow this format exactly:
+    User: ${name}
+    AI Plagiarism Percentage: XX% (Low / Medium / High)
+    Analysis: A clear explanation of why.
+    Specific Excerpts:
+    Excerpt 1: the quoted text
+    Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
 
-Analysis: A clear explanation of why.
+    Excerpt 2: the quoted text
+    Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
 
-Specific Excerpts:
-Excerpt 1: the quoted text
-Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
-
-Excerpt 2: the quoted text
-Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
-
-Excerpt 3: the quoted text
-Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
----
-
-=== ${name} ===
-${text}`;
+    Excerpt 3: the quoted text
+    Explanation: your explanation of why this excerpt is likely AI-generated or human-written.
+    ---
+    === ${name} ===
+    ${trimmedText}`;
+      };
 
   console.error("Running AI plagiarism analysis...");
-
   const entries = Object.entries(userTextMap);
   const results = await Promise.all(
     entries.map(async ([name, text]) => {
       try {
-        const response = await ai.models.generateContent({
-          model: "gemma-4-26b-a4b-it",
-          contents: [{ role: "user", parts: [{ text: perUserPrompt(name, text) }] }],
-          config: { maxOutputTokens: 8192 },
-        });
+        const response = await withRetry(() =>
+          ai.models.generateContent({
+            model: "gemma-4-31b-it",
+            contents: [{ role: "user", parts: [{ text: perUserPrompt(name, text) }] }],
+            config: {
+              temperature: 0.4,
+              topP: 0.95,
+              topK: 70,
+              maxOutputTokens: 8192,
+            },
+          })
+        );
 
-        // Extract text from candidates directly to handle MAX_TOKENS cutoff gracefully
         let result = "";
         if (response?.candidates?.[0]?.content?.parts) {
           result = response.candidates[0].content.parts
@@ -230,7 +265,6 @@ ${text}`;
             .trim();
         }
         if (!result) result = (response.text || "").trim();
-
         if (!result) {
           console.error(`Warning: empty response for "${name}"`);
           return `User: ${name}\n\nAI Plagiarism Percentage: N/A\n\nAnalysis: Model returned no response for this user.\n---`;
@@ -242,7 +276,6 @@ ${text}`;
       }
     })
   );
-
   return results.join("\n\n");
 }
 
@@ -286,6 +319,9 @@ Outputs (when --output is set):
   console.error("Authenticating...");
   const authClient = await getAuthClient();
   const drive = google.drive({ version: "v3", auth: authClient });
+
+  const fileMetadata = await getFileMetadata(drive, fileId);
+  const documentTitle = fileMetadata?.name || null;
 
   console.error("Fetching revision list...");
   let revisions = await listRevisions(drive, fileId);
@@ -338,6 +374,7 @@ Outputs (when --output is set):
       isFirstRevision: i === 0,
     };
 
+
     if (currText === null) {
       entry.error = "Could not export this revision";
       entry.hasChanges = false;
@@ -377,7 +414,9 @@ Outputs (when --output is set):
 
   const userSummary = Object.values(userMap);
   const output = {
-    fileId, generatedAt,
+    fileId,
+    documentTitle,
+    generatedAt,
     timezone: "Asia/Singapore (UTC+8)",
     totalRevisions: revisionEntries.length,
     userSummary,

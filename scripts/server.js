@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
+const { google } = require('googleapis');
 const ws = require('ws');
 
 // SUPABASE CONNECTION
@@ -20,6 +21,45 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const app = express();
 app.use(express.json());
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/documents.readonly',
+];
+
+async function getGoogleAuthClient() {
+  const serviceKeyEnv = process.env.GOOGLE_SERVICE_KEY;
+  if (serviceKeyEnv && serviceKeyEnv.trim().startsWith('{')) {
+    try {
+      const credentials = JSON.parse(serviceKeyEnv);
+      const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
+      return auth.getClient();
+    } catch (err) {
+      console.error('[History] GOOGLE_SERVICE_KEY is invalid JSON, falling back to service-key.json');
+    }
+  }
+
+  const serviceAccountPath = path.join(__dirname, 'service-key.json');
+  if (fs.existsSync(serviceAccountPath)) {
+    const auth = new google.auth.GoogleAuth({ keyFile: serviceAccountPath, scopes: SCOPES });
+    return auth.getClient();
+  }
+
+  throw new Error('No Google credentials found for history title lookup.');
+}
+
+async function resolveDocumentTitle(docId) {
+  if (!docId) return null;
+  try {
+    const authClient = await getGoogleAuthClient();
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    const res = await drive.files.get({ fileId: docId, fields: 'name' });
+    return res.data?.name || null;
+  } catch (err) {
+    console.warn('[History] Could not resolve document title for', docId, err.message);
+    return null;
+  }
+}
 
 // ROOT always points to the project root regardless of where node is run from
 const ROOT    = path.dirname(path.dirname(path.resolve(__filename)));
@@ -265,10 +305,11 @@ app.post('/analyze', (req, res) => {
         }
 
         console.log('[History]: All files uploaded, inserting DB row...');
+        const documentTitle = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
         const { error: dbErr } = await supabase.from('history').upsert({
           id: jobId,
           doc_id: reportJson.fileId,
-          title: 'Academic Contribution & Plagiarism Report',
+          title: documentTitle,
           generated_at: reportJson.generatedAt,
           user_summary: JSON.stringify(reportJson.userSummary),
           pdf_path:           `${base}/Contribution_Report_${timestamp}.pdf`,
@@ -318,14 +359,42 @@ app.get('/history', async (req, res) => {
       return signErr ? null : signed.signedUrl;
     };
 
-    const withUrls = await Promise.all(data.map(async (job) => ({
-      ...job,
-      downloadUrl:     await sign(job.pdf_path),
-      csvSummaryUrl:   await sign(job.csv_summary_path),
-      csvRevisionsUrl: await sign(job.csv_revisions_path),
-      aiAnalysisUrl:   await sign(job.ai_analysis_path),
-      userTextUrl:     await sign(job.user_text_path),
-    })));
+    const withUrls = await Promise.all(data.map(async (job) => {
+      let displayTitle = job.title || 'Untitled document';
+
+      if (!displayTitle || displayTitle === 'Academic Contribution & Plagiarism Report') {
+        const resolvedTitle = await resolveDocumentTitle(job.doc_id);
+        if (resolvedTitle) {
+          displayTitle = resolvedTitle;
+        } else {
+          try {
+            const { data: jsonBlob, error: downloadErr } = await supabase.storage
+              .from('report')
+              .download(job.json_path);
+
+            if (!downloadErr && jsonBlob) {
+              const text = await jsonBlob.text();
+              const parsed = JSON.parse(text);
+              if (parsed?.documentTitle) {
+                displayTitle = parsed.documentTitle;
+              }
+            }
+          } catch (err) {
+            console.warn('[History Title] Could not resolve title from report JSON:', err.message);
+          }
+        }
+      }
+
+      return {
+        ...job,
+        displayTitle,
+        downloadUrl:     await sign(job.pdf_path),
+        csvSummaryUrl:   await sign(job.csv_summary_path),
+        csvRevisionsUrl: await sign(job.csv_revisions_path),
+        aiAnalysisUrl:   await sign(job.ai_analysis_path),
+        userTextUrl:     await sign(job.user_text_path),
+      };
+    }));
 
     res.json({ jobs: withUrls });
   } catch (err) {

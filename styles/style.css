@@ -151,6 +151,21 @@ ol > li::marker {
     display: block;      /* Removes weird extra bottom spacing images sometimes get */
 }
 
+.page-button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.page-button:hover {
+    background-color: #45a049;
+}
+
 /*LOADING PAGE*/
 #loading-page-container {
     background-color: white;
@@ -342,6 +357,21 @@ ol > li::marker {
 
 #download-page-container a:hover {
     color: #4CAF50;
+}
+
+.history-file-button {
+    background-color: #d3d3d3;
+    border: none;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.history-file-button:hover {
+    background-color: #c0c0c0;
 }
  
 /* ── ANIMATIONS ───────────────────────────────────────────────────────────── */

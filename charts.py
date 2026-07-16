@@ -38,6 +38,85 @@ def load_csv(path):
                 rows.append(line)
     return pd.read_csv(StringIO("".join(rows)))
 
+
+def format_date_axis(ax, min_date, max_date):
+    span = max_date - min_date
+    if span <= pd.Timedelta(days=7):
+        locator = mdates.DayLocator(interval=1)
+        formatter = mdates.DateFormatter("%d %b")
+    elif span <= pd.Timedelta(days=365):
+        locator = mdates.WeekdayLocator(byweekday=mdates.MO, interval=1)
+        formatter = mdates.DateFormatter("%d %b")
+    else:
+        locator = mdates.MonthLocator(interval=1)
+        formatter = mdates.DateFormatter("%b %Y")
+
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(formatter)
+
+
+def add_date_boxes(ax, dates, color="0.7", alpha=0.08):
+    if len(dates) == 0:
+        return
+
+    date_index = pd.DatetimeIndex(pd.to_datetime(dates)).normalize().unique()
+    for day in date_index:
+        ax.axvspan(
+            day - pd.Timedelta(hours=12),
+            day + pd.Timedelta(hours=12),
+            color=color,
+            alpha=alpha,
+            linewidth=0,
+            zorder=0,
+        )
+
+# ── HEATMAP ─────────────────────────────────────────────────────────────────
+
+def plot_heatmap(revisions_df, col, title, ylabel, output_path):
+    df = revisions_df.copy()
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    df["Name"] = df["Name"].fillna("Unknown")
+    df["Timestamp"] = pd.to_datetime(
+        df["Modified Time (SGT)"].str.replace(" SGT", "", regex=False),
+        format="%Y-%m-%d %H:%M:%S",
+    ).dt.normalize()
+
+    heatmap_df = (
+        df.groupby(["Timestamp", "Name"])[col]
+        .sum()
+        .unstack(fill_value=0)
+        .sort_index()
+    )
+
+    if heatmap_df.empty:
+        return
+
+    heatmap_df.index = heatmap_df.index.strftime("%Y-%m-%d")
+
+    if heatmap_df.empty:
+        return
+
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    sns.heatmap(
+        heatmap_df,
+        cmap="coolwarm",
+        linewidths=0.2,
+        linecolor="white",
+        cbar=True,
+        cbar_kws={"label": ylabel},
+        ax=ax,
+    )
+    ax.set_title(title, pad=10)
+    ax.set_xlabel("Contributor")
+    ax.set_ylabel("Date (SGT)")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Heatmap saved: {output_path}")
+
 # ── PIE CHART ─────────────────────────────────────────────────────────────────
 
 def plot_pie(summary_df, output_path):
@@ -80,6 +159,9 @@ def plot_pie(summary_df, output_path):
 
 # ── LINE CHART BY DATE ────────────────────────────────────────────────────────
 
+import matplotlib.dates as mdates  # add this import if not already present
+
+# ── LINE CHART BY DATE ────────────────────────────────────────────────────────
 def plot_line(revisions_df, col, title, ylabel, output_path):
     df = revisions_df.copy()
     df[col]    = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -88,17 +170,15 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
         df["Modified Time (SGT)"].str.replace(" SGT", "", regex=False),
         format="%Y-%m-%d %H:%M:%S",
     ).dt.normalize()
-
+    
     df = df.groupby(["Name", "Timestamp"], as_index=False)[col].sum()
-
     users = df["Name"].unique().tolist()
+    
     if not users:
         return
-
-    min_date = df["Timestamp"].min()
-    max_date = df["Timestamp"].max()
+    min_date = df["Timestamp"].min().normalize()
+    max_date = df["Timestamp"].max().normalize()
     all_dates = pd.date_range(start=min_date, end=max_date, freq="D")
-
     expanded_records = []
     for user in users:
         user_df = df[df["Name"] == user].set_index("Timestamp")[[col]]
@@ -112,9 +192,10 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
             })
 
     long_df = pd.DataFrame(expanded_records)
-
     fig, ax = plt.subplots(figsize=(11, 6))
     palette = sns.color_palette("tab10", len(users))
+
+    add_date_boxes(ax, long_df["Timestamp"].dropna())
 
     sns.lineplot(
         data=long_df,
@@ -124,7 +205,7 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
         palette=palette,
         linewidth=2,
         marker="o",
-        markersize=4,
+        markersize=6,
         ax=ax,
     )
 
@@ -137,19 +218,19 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
             color=palette[i]
         )
 
-    time_range = max_date - min_date
-    padding    = pd.Timedelta(days=1)
-    ax.set_xlim(min_date - padding, max_date + padding)
+    # Add small padding so edge labels aren't clipped, then force first/last date ticks
+    ax.set_xlim(min_date - pd.Timedelta(hours=12), max_date + pd.Timedelta(hours=12))
+    format_date_axis(ax, min_date, max_date)
 
-    if time_range.days <= 7:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-    elif time_range.days <= 31:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-    else:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
-        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
+    existing_ticks = list(ax.get_xticks())
+    first_tick = mdates.date2num(min_date)
+    last_tick = mdates.date2num(max_date)
+
+    if not any(abs(t - first_tick) < 0.5 for t in existing_ticks):
+        existing_ticks.append(first_tick)
+    if not any(abs(t - last_tick) < 0.5 for t in existing_ticks):
+        existing_ticks.append(last_tick)
+    ax.set_xticks(sorted(set(existing_ticks)))
 
     plt.xticks(rotation=45, ha="right")
     ax.set_xlabel("Date (SGT)", labelpad=8)
@@ -157,12 +238,13 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     ax.set_title(title, pad=16)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
     ax.axhline(0, color="grey", linewidth=0.8, linestyle="--")
-
+    
     if len(users) > 4:
         ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=9)
     else:
         ax.legend(loc="upper left", fontsize=9)
-
+    
+    ax.grid(False)
     sns.despine()
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -229,6 +311,7 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
     else:
         ax.legend(loc="upper left", fontsize=9)
 
+    ax.grid(False)
     sns.despine()
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -274,8 +357,9 @@ def main():
     chars_line_path = os.path.join(args.output, "contribution-line-netchars.png")
     words_rev_path  = os.path.join(args.output, "contribution-line-revision-networds.png")
     chars_rev_path  = os.path.join(args.output, "contribution-line-revision-netchars.png")
+    heatmap_path    = os.path.join(args.output, "contribution-heatmap-networds.png")
 
-    print("Generating line charts...")
+    print("Generating charts...")
     plot_pie(summary_df, pie_path)
     plot_line(revisions_df, "Net Words", "Progressive Net Word Contribution Over Time",
               "Cumulative Net Words", words_line_path)
@@ -285,6 +369,8 @@ def main():
                           "Cumulative Net Words", words_rev_path)
     plot_line_by_revision(revisions_df, "Net Chars", "Net Character Contribution by Revision",
                           "Cumulative Net Characters", chars_rev_path)
+    plot_heatmap(revisions_df, "Net Words", "Daily Net Word Contribution Heatmap",
+                 "Net Words", heatmap_path)
 
     print(f"\nDone! Charts saved to: {os.path.abspath(args.output)}")
 
