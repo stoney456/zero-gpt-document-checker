@@ -175,7 +175,7 @@ app.get('/debug', (req, res) => {
   });
 });
 
-// ── POST /analyze — start the pipeline ───────────────────────────────────────
+// POST /analyze — start the pipeline 
 
 app.post('/analyze', (req, res) => {
   console.log('[Analyze] POST /analyze received, body:', req.body);

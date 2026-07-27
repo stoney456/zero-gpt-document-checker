@@ -202,7 +202,7 @@ def render_analysis_section(story, sections, styles):
 
         story.append(Spacer(1, 10))
 
-# ── BUILD PDF ─────────────────────────────────────────────────────────────────
+# BUILD PDF
 
 CHART_META = [
     ("contribution-pie.png",                    "Overall Net Word Contribution - Pie Chart"),

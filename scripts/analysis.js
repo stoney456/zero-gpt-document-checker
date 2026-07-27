@@ -309,7 +309,7 @@ Outputs (when --output is set):
   const toRevId    = args.includes("--to")     ? args[args.indexOf("--to") + 1]     : null;
 
   // Gemini key: environment variable only
-  const geminiKey = process.env.GEMINI_API_KEY || null;
+  const geminiKey = "AIzaSyC6lWuWJSaZJmJMf9NpenKxCfPQ4KTu6AA";
   if (!geminiKey) {
     console.error("No GEMINI_API_KEY environment variable set. Skipping AI analysis.");
   }

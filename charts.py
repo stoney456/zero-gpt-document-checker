@@ -70,53 +70,6 @@ def add_date_boxes(ax, dates, color="0.7", alpha=0.08):
             zorder=0,
         )
 
-# ── HEATMAP ─────────────────────────────────────────────────────────────────
-
-def plot_heatmap(revisions_df, col, title, ylabel, output_path):
-    df = revisions_df.copy()
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-    df["Name"] = df["Name"].fillna("Unknown")
-    df["Timestamp"] = pd.to_datetime(
-        df["Modified Time (SGT)"].str.replace(" SGT", "", regex=False),
-        format="%Y-%m-%d %H:%M:%S",
-    ).dt.normalize()
-
-    heatmap_df = (
-        df.groupby(["Timestamp", "Name"])[col]
-        .sum()
-        .unstack(fill_value=0)
-        .sort_index()
-    )
-
-    if heatmap_df.empty:
-        return
-
-    heatmap_df.index = heatmap_df.index.strftime("%Y-%m-%d")
-
-    if heatmap_df.empty:
-        return
-
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    sns.heatmap(
-        heatmap_df,
-        cmap="coolwarm",
-        linewidths=0.2,
-        linecolor="white",
-        cbar=True,
-        cbar_kws={"label": ylabel},
-        ax=ax,
-    )
-    ax.set_title(title, pad=10)
-    ax.set_xlabel("Contributor")
-    ax.set_ylabel("Date (SGT)")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-    ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"Heatmap saved: {output_path}")
-
 # ── PIE CHART ─────────────────────────────────────────────────────────────────
 
 def plot_pie(summary_df, output_path):
@@ -357,7 +310,7 @@ def main():
     chars_line_path = os.path.join(args.output, "contribution-line-netchars.png")
     words_rev_path  = os.path.join(args.output, "contribution-line-revision-networds.png")
     chars_rev_path  = os.path.join(args.output, "contribution-line-revision-netchars.png")
-    heatmap_path    = os.path.join(args.output, "contribution-heatmap-networds.png")
+    bar_path        = os.path.join(args.output, "contribution-bar-networds.png")
 
     print("Generating charts...")
     plot_pie(summary_df, pie_path)
@@ -369,9 +322,7 @@ def main():
                           "Cumulative Net Words", words_rev_path)
     plot_line_by_revision(revisions_df, "Net Chars", "Net Character Contribution by Revision",
                           "Cumulative Net Characters", chars_rev_path)
-    plot_heatmap(revisions_df, "Net Words", "Daily Net Word Contribution Heatmap",
-                 "Net Words", heatmap_path)
-
+    
     print(f"\nDone! Charts saved to: {os.path.abspath(args.output)}")
 
 if __name__ == "__main__":
