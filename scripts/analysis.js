@@ -218,10 +218,14 @@ async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
       : text;
 
     return `You are an expert at detecting AI-generated text.
-    Analyze the following text written by "${name}" for AI plagiarism.
+    Analyze the following text written by "${name}" for AI plagiarism. You should also consider the possiblity of 
+    human-written text that has been heavily edited by AI tools, as well as plagiarism through copy and pasting. 
+    Provide a plagiarism percentage (0-100%) and a clear explanation of your reasoning, 
+    including specific excerpts from the text that support your conclusion. 
     Your output must not have any markdown formatting or HTML tags.
     Follow this format exactly:
     User: ${name}
+    
     AI Plagiarism Percentage: XX% (Low / Medium / High)
     Analysis: A clear explanation of why.
     Specific Excerpts:
@@ -248,10 +252,10 @@ async function analyzeAIPlagiarism(userTextMap, geminiApiKey) {
             model: "gemma-4-31b-it",
             contents: [{ role: "user", parts: [{ text: perUserPrompt(name, text) }] }],
             config: {
-              temperature: 0.4,
-              topP: 0.95,
-              topK: 70,
-              maxOutputTokens: 8192,
+              temperature: 0.2,
+              topP: 0.4,
+              topK: 30,
+              maxOutputTokens: 8192
             },
           })
         );
@@ -309,7 +313,7 @@ Outputs (when --output is set):
   const toRevId    = args.includes("--to")     ? args[args.indexOf("--to") + 1]     : null;
 
   // Gemini key: environment variable only
-  const geminiKey = "AIzaSyC6lWuWJSaZJmJMf9NpenKxCfPQ4KTu6AA";
+  const geminiKey = process.env.GEMINI_API_KEY || null;
   if (!geminiKey) {
     console.error("No GEMINI_API_KEY environment variable set. Skipping AI analysis.");
   }

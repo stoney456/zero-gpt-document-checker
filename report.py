@@ -4,7 +4,7 @@ PDF Report Generator
 Combines contribution charts and AI plagiarism analysis into a single PDF report.
 
 Usage:
-    python report.py --charts <charts_folder> --analysis <ai-analysis.txt> [--output <report.pdf>] [--title <title>]
+    python report.py --charts <charts_folder> --analysis <ai-analysis.txt> [--output <report.pdf>] [--title <title>] [--document-name <name>]
 
 Requirements:
     pip install reportlab
@@ -207,13 +207,11 @@ def render_analysis_section(story, sections, styles):
 CHART_META = [
     ("contribution-pie.png",                    "Overall Net Word Contribution - Pie Chart"),
     ("contribution-line-networds.png",          "Progressive Net Word Contribution Over Time"),
-    ("contribution-line-netchars.png",          "Progressive Net Character Contribution Over Time"),
     ("contribution-line-revision-networds.png", "Net Word Contribution by Revision Number"),
-    ("contribution-line-revision-netchars.png", "Net Character Contribution by Revision Number"),
-    ("contribution-heatmap-networds.png",       "Contribution Heatmap by Date and Contributor"),
+    
 ]
 
-def build_pdf(charts_folder, analysis_path, output_path, title):
+def build_pdf(charts_folder, analysis_path, output_path, title, document_name=None):
     styles = make_styles()
     doc = SimpleDocTemplate(
         output_path, pagesize=A4,
@@ -241,6 +239,8 @@ def build_pdf(charts_folder, analysis_path, output_path, title):
     story.append(Spacer(1, 2 * cm))
     story.append(Paragraph(title, styles["ReportTitle"]))
     story.append(Paragraph(f"Generated: {generated}", styles["ReportSubtitle"]))
+    if document_name and str(document_name).strip():
+        story.append(Paragraph(f"Document Name: {document_name}", styles["ReportSubtitle"]))
     story.append(hr())
     story.append(Spacer(1, 0.5 * cm))
     print("[PDF-PROGRESS] 1/4")
@@ -306,13 +306,14 @@ def main():
     parser.add_argument("--analysis", default=None)
     parser.add_argument("--output",   default="contribution-report.pdf")
     parser.add_argument("--title",    default="Contribution Report")
+    parser.add_argument("--document-name", default=None)
     args = parser.parse_args()
 
     if not os.path.isdir(args.charts):
         print(f"Charts folder not found: {args.charts}")
         sys.exit(1)
 
-    build_pdf(args.charts, args.analysis, args.output, args.title)
+    build_pdf(args.charts, args.analysis, args.output, args.title, args.document_name)
 
 if __name__ == "__main__":
     main()

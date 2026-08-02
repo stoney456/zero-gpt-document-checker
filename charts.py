@@ -30,6 +30,13 @@ sns.set_theme(style="whitegrid", palette="tab10", rc={
 
 # ── CSV PARSING ───────────────────────────────────────────────────────────────
 
+def build_user_color_map(names, palette_name="tab10"):
+    clean_names = [str(name).strip() if pd.notna(name) else "Unknown" for name in names]
+    ordered_names = sorted(dict.fromkeys(clean_names), key=lambda n: n.lower())
+    palette = sns.color_palette(palette_name, len(ordered_names))
+    return {name: palette[i] for i, name in enumerate(ordered_names)}
+
+
 def load_csv(path):
     rows = []
     with open(path, encoding="utf-8") as f:
@@ -72,11 +79,11 @@ def add_date_boxes(ax, dates, color="0.7", alpha=0.08):
 
 # ── PIE CHART ─────────────────────────────────────────────────────────────────
 
-def plot_pie(summary_df, output_path):
+def plot_pie(summary_df, output_path, user_color_map):
     names  = summary_df["Name"].fillna("Unknown").tolist()
     values = (summary_df["Words Added"] - summary_df["Words Removed"]).clip(lower=0).tolist()
     total  = sum(values)
-    colors = sns.color_palette("tab10", len(names))
+    colors = [user_color_map.get(name, user_color_map.get("Unknown")) for name in names]
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -115,7 +122,7 @@ def plot_pie(summary_df, output_path):
 import matplotlib.dates as mdates  # add this import if not already present
 
 # ── LINE CHART BY DATE ────────────────────────────────────────────────────────
-def plot_line(revisions_df, col, title, ylabel, output_path):
+def plot_line(revisions_df, col, title, ylabel, output_path, user_color_map):
     df = revisions_df.copy()
     df[col]    = pd.to_numeric(df[col], errors="coerce").fillna(0)
     df["Name"] = df["Name"].fillna("Unknown")
@@ -125,7 +132,7 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     ).dt.normalize()
     
     df = df.groupby(["Name", "Timestamp"], as_index=False)[col].sum()
-    users = df["Name"].unique().tolist()
+    users = sorted(df["Name"].unique().tolist(), key=lambda n: n.lower())
     
     if not users:
         return
@@ -146,7 +153,7 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
 
     long_df = pd.DataFrame(expanded_records)
     fig, ax = plt.subplots(figsize=(11, 6))
-    palette = sns.color_palette("tab10", len(users))
+    palette = [user_color_map.get(user, user_color_map.get("Unknown")) for user in users]
 
     add_date_boxes(ax, long_df["Timestamp"].dropna())
 
@@ -155,6 +162,7 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
         x="Timestamp",
         y="Cumulative",
         hue="User",
+        hue_order=users,
         palette=palette,
         linewidth=2,
         marker="o",
@@ -174,16 +182,6 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
     # Add small padding so edge labels aren't clipped, then force first/last date ticks
     ax.set_xlim(min_date - pd.Timedelta(hours=12), max_date + pd.Timedelta(hours=12))
     format_date_axis(ax, min_date, max_date)
-
-    existing_ticks = list(ax.get_xticks())
-    first_tick = mdates.date2num(min_date)
-    last_tick = mdates.date2num(max_date)
-
-    if not any(abs(t - first_tick) < 0.5 for t in existing_ticks):
-        existing_ticks.append(first_tick)
-    if not any(abs(t - last_tick) < 0.5 for t in existing_ticks):
-        existing_ticks.append(last_tick)
-    ax.set_xticks(sorted(set(existing_ticks)))
 
     plt.xticks(rotation=45, ha="right")
     ax.set_xlabel("Date (SGT)", labelpad=8)
@@ -206,13 +204,13 @@ def plot_line(revisions_df, col, title, ylabel, output_path):
 
 # ── LINE CHART BY REVISION ────────────────────────────────────────────────────
 
-def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
+def plot_line_by_revision(revisions_df, col, title, ylabel, output_path, user_color_map):
     df = revisions_df.copy()
     df[col]              = pd.to_numeric(df[col], errors="coerce").fillna(0)
     df["Name"]           = df["Name"].fillna("Unknown")
     df["Revision Index"] = pd.to_numeric(df["Revision Index"], errors="coerce")
 
-    users   = df["Name"].unique().tolist()
+    users   = sorted(df["Name"].unique().tolist(), key=lambda n: n.lower())
     max_rev = int(df["Revision Index"].max()) if not df.empty else 0
     all_revs = list(range(0, max_rev + 1))
 
@@ -228,17 +226,18 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path):
     long_df = pd.DataFrame(expanded_records)
 
     fig, ax = plt.subplots(figsize=(11, 6))
-    palette = sns.color_palette("tab10", len(users))
+    palette = [user_color_map.get(user, user_color_map.get("Unknown")) for user in users]
 
     sns.lineplot(
         data=long_df,
         x="Revision",
         y="Cumulative",
         hue="User",
+        hue_order=users,
         palette=palette,
         linewidth=2,
         marker="o",
-        markersize=4,
+        markersize=6,
         ax=ax,
     )
 
@@ -305,23 +304,20 @@ def main():
     print(f"  {len(summary_df)} users found in summary")
     print(f"  {len(revisions_df)} revisions found\n")
 
+    all_names = summary_df["Name"].fillna("Unknown").tolist() + revisions_df["Name"].fillna("Unknown").tolist()
+    user_color_map = build_user_color_map(all_names)
+
     pie_path        = os.path.join(args.output, "contribution-pie.png")
     words_line_path = os.path.join(args.output, "contribution-line-networds.png")
-    chars_line_path = os.path.join(args.output, "contribution-line-netchars.png")
     words_rev_path  = os.path.join(args.output, "contribution-line-revision-networds.png")
-    chars_rev_path  = os.path.join(args.output, "contribution-line-revision-netchars.png")
-    bar_path        = os.path.join(args.output, "contribution-bar-networds.png")
+    
 
     print("Generating charts...")
-    plot_pie(summary_df, pie_path)
+    plot_pie(summary_df, pie_path, user_color_map)
     plot_line(revisions_df, "Net Words", "Progressive Net Word Contribution Over Time",
-              "Cumulative Net Words", words_line_path)
-    plot_line(revisions_df, "Net Chars", "Progressive Net Character Contribution Over Time",
-              "Cumulative Net Characters", chars_line_path)
+              "Cumulative Net Words", words_line_path, user_color_map)
     plot_line_by_revision(revisions_df, "Net Words", "Net Word Contribution by Revision",
-                          "Cumulative Net Words", words_rev_path)
-    plot_line_by_revision(revisions_df, "Net Chars", "Net Character Contribution by Revision",
-                          "Cumulative Net Characters", chars_rev_path)
+                          "Cumulative Net Words", words_rev_path, user_color_map)
     
     print(f"\nDone! Charts saved to: {os.path.abspath(args.output)}")
 

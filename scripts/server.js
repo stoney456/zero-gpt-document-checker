@@ -240,6 +240,17 @@ app.post('/analyze', (req, res) => {
       console.log(`[Pipeline] Job ${jobId} - Starting STEP 3: report.py`);
       jobs[jobId].step = 'Compiling PDF report...';
       jobs[jobId].progress = null;
+      const reportJsonPath = path.join(jobDir, 'report.json');
+      let documentName = null;
+      if (fs.existsSync(reportJsonPath)) {
+        try {
+          const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
+          documentName = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
+        } catch (err) {
+          console.warn('[Pipeline] Could not read report.json for PDF metadata:', err.message);
+        }
+      }
+
       const reportArgs = [
         'report.py',
         '--charts',  `"${jobDir}"`,
@@ -249,6 +260,9 @@ app.post('/analyze', (req, res) => {
       const analysisFile = path.join(jobDir, 'report-ai-analysis.txt');
       if (fs.existsSync(analysisFile)) {
         reportArgs.push('--analysis', `"${analysisFile}"`);
+      }
+      if (documentName) {
+        reportArgs.push('--document-name', `"${documentName}"`);
       }
       await runScript('python', reportArgs, (msg) => {
         if (msg.progress) jobs[jobId].progress = msg.progress;
@@ -282,9 +296,8 @@ app.post('/analyze', (req, res) => {
           { local: path.join(jobDir, 'report.json'),                             storage: `${base}/report.json`,                          contentType: 'application/json' },
           { local: path.join(jobDir, 'contribution-pie.png'),                    storage: `${base}/contribution-pie.png`,                 contentType: 'image/png' },
           { local: path.join(jobDir, 'contribution-line-networds.png'),          storage: `${base}/contribution-line-networds.png`,       contentType: 'image/png' },
-          { local: path.join(jobDir, 'contribution-line-netchars.png'),          storage: `${base}/contribution-line-netchars.png`,       contentType: 'image/png' },
           { local: path.join(jobDir, 'contribution-line-revision-networds.png'), storage: `${base}/contribution-line-revision-networds.png`, contentType: 'image/png' },
-          { local: path.join(jobDir, 'contribution-line-revision-netchars.png'), storage: `${base}/contribution-line-revision-netchars.png`, contentType: 'image/png' },
+          
         ];
 
         for (const f of filesToUpload) {
