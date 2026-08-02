@@ -22,7 +22,7 @@ from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image,
-    PageBreak, HRFlowable, KeepTogether
+    PageBreak, HRFlowable
 )
 
 PAGE_W, PAGE_H = A4
@@ -72,7 +72,7 @@ def chart_image(path, max_width=None, max_height=None):
     if max_width is None:
         max_width = PAGE_W - 2 * MARGIN
     if max_height is None:
-        max_height = PAGE_H * 0.55
+        max_height = PAGE_H * 0.45
     img = Image(path)
     w, h = img.drawWidth, img.drawHeight
     scale = min(max_width / w, max_height / h, 1.0)
@@ -255,11 +255,11 @@ def build_pdf(charts_folder, analysis_path, output_path, title, document_name=No
         if not os.path.exists(path):
             continue
         found_any_chart = True
-        story.append(Spacer(1, 0.3 * cm))
-        story.append(KeepTogether([
-            chart_image(path),
-            Paragraph(caption, styles["ChartCaption"]),
-        ]))
+        story.append(Spacer(1, 0.2 * cm))
+        img = chart_image(path)
+        img.hAlign = "CENTER"
+        story.append(img)
+        story.append(Paragraph(caption, styles["ChartCaption"]))
 
     if not found_any_chart:
         story.append(Paragraph(
