@@ -71,7 +71,6 @@ const SCRIPTS = path.join(ROOT, 'scripts');
 // Global job state tracker
 const jobs = {};
 let currentJobId = null;
-let currentProc = null; // To track the currently running child process for cancellation
 
 
 /**
@@ -99,14 +98,18 @@ function extractDocId(input) {
  * Wraps a spawned child process in a Promise.
  * Resolves on exit code 0, rejects otherwise.
  */
-function runScript(command, args, onData) {
+function runScript(command, args, onData, jobId) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { 
-      cwd: ROOT, 
-      shell: true, 
+    const proc = spawn(command, args, {
+      cwd: ROOT,
+      shell: true,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     });
-    currentProc = proc;
+
+    if (jobId && jobs[jobId]) {
+      jobs[jobId].proc = proc;
+    }
+
     const handleChunk = (data) => {
       const text = data.toString().trim();
       const match = text.match(/\[Progress\]\s*(\d+)\/(\d+)/);
@@ -118,12 +121,16 @@ function runScript(command, args, onData) {
     proc.stdout.on('data', (data) => { console.log(`[Script]: ${data.toString().trim()}`); handleChunk(data); });
     proc.stderr.on('data', (data) => { console.error(`[Script Err]: ${data.toString().trim()}`); handleChunk(data); });
     proc.on('close', (code) => {
-      currentProc = null;
+      if (jobId && jobs[jobId]) {
+        jobs[jobId].proc = null;
+      }
       if (code === 0 || code === null) resolve();
       else reject(new Error(`Script exited with code ${code}`));
     });
     proc.on('error', (err) => {
-      currentProc = null;
+      if (jobId && jobs[jobId]) {
+        jobs[jobId].proc = null;
+      }
       reject(new Error(`Failed to spawn process: ${err.message}`));
     });
   });
@@ -187,10 +194,6 @@ app.post('/analyze', (req, res) => {
     return res.status(400).json({ error: 'Missing Google Doc URL.' });
   }
 
-  if (currentJobId && jobs[currentJobId]?.status === 'running') {
-    return res.status(409).json({ error: 'A job is already running.' });
-  }
-
   const cleanDocId = extractDocId(docUrl);
   console.log(`[Parser]: Extracted Document ID: ${cleanDocId}`);
 
@@ -220,7 +223,7 @@ app.post('/analyze', (req, res) => {
           jobs[jobId].step = 'Running AI analysis on text...';
           jobs[jobId].progress = null;
         }
-      });
+      }, jobId);
       console.log(`[Pipeline] Job ${jobId} - STEP 1 complete`);
       // STEP 2: charts.py 
       console.log(`[Pipeline] Job ${jobId} - Starting STEP 2: charts.py`);
@@ -233,7 +236,7 @@ app.post('/analyze', (req, res) => {
         '--output',    jobDir,
       ], (msg) => {
         if (msg.progress) jobs[jobId].progress = msg.progress;
-      });
+      }, jobId);
       console.log(`[Pipeline] Job ${jobId} - STEP 2 complete`);
 
       // STEP 3: report.py 
@@ -266,7 +269,7 @@ app.post('/analyze', (req, res) => {
       }
       await runScript('python', reportArgs, (msg) => {
         if (msg.progress) jobs[jobId].progress = msg.progress;
-      });
+      }, jobId);
       console.log(`[Pipeline] Job ${jobId} - STEP 3 complete`);
 
       // STEP 4: Upload files to supabase
@@ -455,23 +458,25 @@ app.get('/history_page.html', (req, res) => {
 
 // POST /cancel - cancel currently running jobs (if any)
 app.post('/cancel', (req, res) => {
-  if (!currentJobId || !jobs[currentJobId] || jobs[currentJobId].status !== 'running') {
+  const jobId = req.query.jobId || currentJobId;
+  if (!jobId || !jobs[jobId] || jobs[jobId].status !== 'running') {
     return res.json({ message: 'No running job to cancel.' });
   }
 
-  if (currentProc) {
+  const proc = jobs[jobId].proc;
+  if (proc) {
     try {
       // Kill entire process tree by PID on Windows
-      spawn('taskkill', ['/pid', String(currentProc.pid), '/f', '/t'], { shell: true });
+      spawn('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { shell: true });
     } catch (e) {
       console.error('taskkill failed:', e.message);
     }
-    currentProc = null;
+    jobs[jobId].proc = null;
   }
 
-  jobs[currentJobId].status = 'cancelled';
-  jobs[currentJobId].step = 'Cancelled by user.';
-  console.log(`[Pipeline]: Job ${currentJobId} cancelled.`);
+  jobs[jobId].status = 'cancelled';
+  jobs[jobId].step = 'Cancelled by user.';
+  console.log(`[Pipeline]: Job ${jobId} cancelled.`);
 
   res.json({ message: 'Job cancelled.' });
 });
@@ -479,19 +484,21 @@ app.post('/cancel', (req, res) => {
 // GET /status
 
 app.get('/status', (req, res) => {
-  if (!currentJobId || !jobs[currentJobId]) return res.json({ status: 'idle' });
-  const job = jobs[currentJobId];
+  const jobId = req.query.jobId || currentJobId;
+  if (!jobId || !jobs[jobId]) return res.json({ status: 'idle' });
+  const job = jobs[jobId];
   res.json({ status: job.status, step: job.step, progress: job.progress, error: job.error });
 });
 
 // GET /download 
 
 app.get('/download', (req, res) => {
-  if (!currentJobId) {
+  const jobId = req.query.jobId || currentJobId;
+  if (!jobId) {
     return res.status(404).send('No active job found.');
   }
 
-  const pdfPath = path.join(ROOT, 'output', currentJobId, 'report.pdf');
+  const pdfPath = path.join(ROOT, 'output', jobId, 'report.pdf');
 
   if (fs.existsSync(pdfPath)) {
     res.download(pdfPath, 'Academic_Contribution_Report.pdf');

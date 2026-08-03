@@ -1,5 +1,10 @@
 // scripts/main.js
 
+function getJobId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("jobId") || sessionStorage.getItem("activeJobId");
+}
+
 //FRONT PAGE LOGIC
 const btn = document.getElementById("start-button");
 if (btn) {
@@ -32,15 +37,28 @@ if (btn) {
 
       console.log("Response status:", res.status, "ok:", res.ok);
 
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
+
       if (!res.ok) {
-        const err = await res.json();
-        setStatus("Error: " + err.error);
+        setStatus("Error: " + (data.error || "Request failed"));
         btn.disabled = false;
         return;
       }
 
+      if (!data.jobId) {
+        setStatus("Could not start analysis. Missing job ID.");
+        btn.disabled = false;
+        return;
+      }
+
+      sessionStorage.setItem("activeJobId", data.jobId);
       setStatus("Redirecting...");
-      window.location.replace("/loading_page.html");
+      window.location.replace(`/loading_page.html?jobId=${encodeURIComponent(data.jobId)}`);
 
     } catch (err) {
       console.error("Fetch error:", err);
@@ -76,6 +94,7 @@ if (loadingContainer) {
   const statusText        = document.getElementById("status-text");
   const loadingStatusText = document.getElementById("loading-status-text");
   const cancelBtn         = document.getElementById("cancel-button");
+  const jobId = getJobId();
   let pollTimer = null;
  
   // Map server step messages to step numbers
@@ -112,7 +131,11 @@ if (loadingContainer) {
   async function cancelJob() {
     clearTimeout(pollTimer);
     try {
-      await fetch("/cancel", { method: "POST" });
+      if (jobId) {
+        await fetch(`/cancel?jobId=${encodeURIComponent(jobId)}`, { method: "POST" });
+      } else {
+        await fetch("/cancel", { method: "POST" });
+      }
     } catch {
       // ignore errors — we're navigating away anyway
     }
@@ -126,7 +149,8 @@ if (loadingContainer) {
  
   async function pollStatus() {
     try {
-      const res  = await fetch("/status");
+      const statusUrl = jobId ? `/status?jobId=${encodeURIComponent(jobId)}` : "/status";
+      const res  = await fetch(statusUrl);
       const data = await res.json();
 
       if (data.status === "running") {
@@ -164,7 +188,7 @@ if (loadingContainer) {
 
         statusText.textContent = "Done!";
         loadingStatusText.textContent = "Redirecting to download...";
-        setTimeout(() => { window.location.href = "/download_page.html"; }, 1200);
+        setTimeout(() => { window.location.href = `/download_page.html?jobId=${encodeURIComponent(jobId || "")}`; }, 1200);
 
       } else if (data.status === "cancelled") {
         clearTimeout(pollTimer);
@@ -215,8 +239,11 @@ if (loadingContainer) {
 // DOWNLOAD PAGE LOGIC
 const downloadBtn = document.getElementById("download-button");
 if (downloadBtn) {
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get("jobId") || sessionStorage.getItem("activeJobId");
   downloadBtn.addEventListener("click", () => {
-    window.location.href = "/download";
+    const downloadUrl = jobId ? `/download?jobId=${encodeURIComponent(jobId)}` : "/download";
+    window.location.href = downloadUrl;
   });
 }
 
