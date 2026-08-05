@@ -153,8 +153,30 @@ if (loadingContainer) {
       const res  = await fetch(statusUrl);
       const data = await res.json();
 
-      if (data.status === "running") {
+      if (data.status === "queued") {
+        statusText.textContent = data.queuePosition
+          ? `Waiting in queue (position ${data.queuePosition})...`
+          : "Waiting in queue...";
+        loadingStatusText.textContent = "Your job is waiting for earlier jobs to finish.";
+        const queueInfo = document.getElementById("queue-info");
+        const queueDetail = document.getElementById("queue-detail");
+        const queuePos = document.getElementById("queue-position");
+        if (queueInfo && queueDetail && queuePos) {
+          queueInfo.style.display = "block";
+          queueDetail.textContent = "Your document is queued for analysis.";
+          queuePos.textContent = data.queuePosition
+            ? `Current queue position: ${data.queuePosition}`
+            : "Queue position unavailable.";
+        }
+        document.getElementById("progress-steps")?.classList.add("queued");
+        pollTimer = setTimeout(pollStatus, 2000);
+
+      } else if (data.status === "running") {
         statusText.textContent = data.step;
+        loadingStatusText.textContent = "Analysis is in progress...";
+        const queueInfo = document.getElementById("queue-info");
+        if (queueInfo) queueInfo.style.display = "none";
+        document.getElementById("progress-steps")?.classList.remove("queued");
         updateSteps(data.step);
 
         let activeIndex = -1;

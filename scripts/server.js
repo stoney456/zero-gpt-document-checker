@@ -68,9 +68,88 @@ const STYLES  = path.join(ROOT, 'styles');
 const ASSETS  = path.join(ROOT, 'assets');
 const SCRIPTS = path.join(ROOT, 'scripts');
 
-// Global job state tracker
-const jobs = {};
+// Job Queue
+const MAX_CONCURRENT_JOBS = parseInt(process.env.QUEUE_CONCURRENCY, 10) || 1;
+
+const jobs = {};   // in-memory cache: jobId -> { status, step, progress, error, proc, meta }
+const queue = [];  // jobIds waiting to run, FIFO
+let activeCount = 0;
 let currentJobId = null;
+
+async function upsertJobRow(jobId, patch) {
+  try {
+    const { error } = await supabase.from('job_queue').upsert({
+      id: jobId,
+      updated_at: new Date().toISOString(),
+      ...patch,
+    });
+    if (error) console.error('[Queue] Failed to persist job', jobId, error.message);
+  } catch (err) {
+    console.error('[Queue] Failed to persist job', jobId, err.message);
+  }
+}
+
+function updateJob(jobId, patch) {
+  jobs[jobId] = { ...(jobs[jobId] || {}), ...patch };
+  const dbPatch = {};
+  if (patch.status !== undefined) dbPatch.status = patch.status;
+  if (patch.step !== undefined) dbPatch.step = patch.step;
+  if (patch.error !== undefined) dbPatch.error = patch.error;
+  if (patch.progress !== undefined) {
+    dbPatch.progress_current = patch.progress ? patch.progress.current : null;
+    dbPatch.progress_total   = patch.progress ? patch.progress.total   : null;
+  }
+  if (Object.keys(dbPatch).length) upsertJobRow(jobId, dbPatch);
+}
+
+function queuePosition(jobId) {
+  const idx = queue.indexOf(jobId);
+  return idx === -1 ? null : idx + 1;
+}
+
+function processQueue() {
+  while (activeCount < MAX_CONCURRENT_JOBS && queue.length > 0) {
+    const jobId = queue.shift();
+    if (!jobs[jobId] || jobs[jobId].status === 'cancelled') continue;
+    activeCount++;
+    currentJobId = jobId;
+    const { cleanDocId, jobDir } = jobs[jobId].meta;
+    updateJob(jobId, { status: 'running', step: 'Extracting revision history from Google Docs...', progress: null });
+    runPipeline(jobId, cleanDocId, jobDir).finally(() => {
+      activeCount--;
+      processQueue();
+    });
+  }
+}
+
+async function restoreQueueOnBoot() {
+  try {
+    const { data, error } = await supabase
+      .from('job_queue')
+      .select('id, doc_id, status')
+      .in('status', ['queued', 'running'])
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+
+    for (const row of data || []) {
+      const jobDir = path.join(ROOT, 'output', row.id);
+      jobs[row.id] = {
+        status: 'queued',
+        step: 'Waiting in queue (recovered after restart)...',
+        progress: null,
+        meta: { cleanDocId: row.doc_id, jobDir },
+      };
+      queue.push(row.id);
+      updateJob(row.id, { status: 'queued', step: jobs[row.id].step });
+    }
+    if (queue.length) {
+      console.log(`[Queue] Restored ${queue.length} job(s) from Supabase after restart.`);
+      processQueue();
+    }
+  } catch (err) {
+    console.error('[Queue] Could not restore queue on boot:', err.message);
+  }
+}
 
 
 /**
@@ -103,6 +182,7 @@ function runScript(command, args, onData, jobId) {
     const proc = spawn(command, args, {
       cwd: ROOT,
       shell: true,
+      detached: process.platform !== 'win32',
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     });
 
@@ -136,6 +216,115 @@ function runScript(command, args, onData, jobId) {
   });
 }
 
+async function runPipeline(jobId, cleanDocId, jobDir) {
+  console.log(`[Pipeline] Job ${jobId} starting...`);
+  try {
+    console.log(`[Pipeline] Job ${jobId} - Starting STEP 1: analysis.js`);
+    await runScript('node', [
+      path.join(SCRIPTS, 'analysis.js'),
+      cleanDocId,
+      '--output', path.join(jobDir, 'report'),
+    ], (msg) => {
+      if (msg.progress) updateJob(jobId, { progress: msg.progress });
+      if (msg.text && msg.text.includes('Extraction complete')) {
+        updateJob(jobId, { step: 'Running AI analysis on text...', progress: null });
+      }
+    }, jobId);
+    console.log(`[Pipeline] Job ${jobId} - STEP 1 complete`);
+
+    console.log(`[Pipeline] Job ${jobId} - Starting STEP 2: charts.py`);
+    updateJob(jobId, { step: 'Generating contribution charts...', progress: null });
+    await runScript('python', [
+      'charts.py',
+      '--summary',   path.join(jobDir, 'report-summary.csv'),
+      '--revisions', path.join(jobDir, 'report-revisions.csv'),
+      '--output',    jobDir,
+    ], (msg) => {
+      if (msg.progress) updateJob(jobId, { progress: msg.progress });
+    }, jobId);
+    console.log(`[Pipeline] Job ${jobId} - STEP 2 complete`);
+
+    console.log(`[Pipeline] Job ${jobId} - Starting STEP 3: report.py`);
+    updateJob(jobId, { step: 'Compiling PDF report...', progress: null });
+    const reportJsonPath = path.join(jobDir, 'report.json');
+    let documentName = null;
+    if (fs.existsSync(reportJsonPath)) {
+      try {
+        const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
+        documentName = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
+      } catch (err) {
+        console.warn('[Pipeline] Could not read report.json for PDF metadata:', err.message);
+      }
+    }
+
+    const reportArgs = [
+      'report.py',
+      '--charts',  `"${jobDir}"`,
+      '--output',  `"${path.join(jobDir, 'report.pdf')}"`,
+      '--title',   '"Academic Contribution & Plagiarism Report"',
+    ];
+    const analysisFile = path.join(jobDir, 'report-ai-analysis.txt');
+    if (fs.existsSync(analysisFile)) reportArgs.push('--analysis', `"${analysisFile}"`);
+    if (documentName) reportArgs.push('--document-name', `"${documentName}"`);
+
+    await runScript('python', reportArgs, (msg) => {
+      if (msg.progress) updateJob(jobId, { progress: msg.progress });
+    }, jobId);
+    console.log(`[Pipeline] Job ${jobId} - STEP 3 complete`);
+
+    try {
+      const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
+      const timestamp = reportJson.generatedAt.replace(/[^0-9]/g, '-').slice(0, 10);
+      const base = `${jobId}`;
+
+      const filesToUpload = [
+        { local: path.join(jobDir, 'report.pdf'),                              storage: `${base}/Contribution_Report_${timestamp}.pdf`, contentType: 'application/pdf' },
+        { local: path.join(jobDir, 'report-summary.csv'),                      storage: `${base}/report-summary.csv`,                   contentType: 'text/csv' },
+        { local: path.join(jobDir, 'report-revisions.csv'),                    storage: `${base}/report-revisions.csv`,                 contentType: 'text/csv' },
+        { local: path.join(jobDir, 'report-ai-analysis.txt'),                  storage: `${base}/report-ai-analysis.txt`,               contentType: 'text/plain' },
+        { local: path.join(jobDir, 'report-user-text.txt'),                    storage: `${base}/report-user-text.txt`,                 contentType: 'text/plain' },
+        { local: path.join(jobDir, 'report.json'),                             storage: `${base}/report.json`,                          contentType: 'application/json' },
+        { local: path.join(jobDir, 'contribution-pie.png'),                    storage: `${base}/contribution-pie.png`,                 contentType: 'image/png' },
+        { local: path.join(jobDir, 'contribution-line-networds.png'),          storage: `${base}/contribution-line-networds.png`,       contentType: 'image/png' },
+        { local: path.join(jobDir, 'contribution-line-revision-networds.png'), storage: `${base}/contribution-line-revision-networds.png`, contentType: 'image/png' },
+      ];
+
+      for (const f of filesToUpload) {
+        if (!fs.existsSync(f.local)) { console.log('[History]: Skipping missing file:', f.local); continue; }
+        const buffer = fs.readFileSync(f.local);
+        const { error: uploadErr } = await supabase.storage
+          .from('report')
+          .upload(f.storage, buffer, { contentType: f.contentType, upsert: true });
+        if (uploadErr) throw uploadErr;
+      }
+
+      const documentTitle = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
+      const { error: dbErr } = await supabase.from('history').upsert({
+        id: jobId,
+        doc_id: reportJson.fileId,
+        title: documentTitle,
+        generated_at: reportJson.generatedAt,
+        user_summary: JSON.stringify(reportJson.userSummary),
+        pdf_path:           `${base}/Contribution_Report_${timestamp}.pdf`,
+        csv_summary_path:   `${base}/report-summary.csv`,
+        csv_revisions_path: `${base}/report-revisions.csv`,
+        ai_analysis_path:   `${base}/report-ai-analysis.txt`,
+        user_text_path:     `${base}/report-user-text.txt`,
+        json_path:          `${base}/report.json`,
+      });
+      if (dbErr) throw dbErr;
+      console.log('[History]: Job', jobId, 'saved to Supabase successfully.');
+    } catch (histErr) {
+      console.error('[History Error] Job', jobId, ':', histErr.message);
+    }
+
+    updateJob(jobId, { status: 'done', step: 'Complete' });
+    console.log(`[Pipeline]: Job ${jobId} complete.`);
+  } catch (err) {
+    console.error(`[Pipeline Error] Job ${jobId}: ${err.message}`);
+    updateJob(jobId, { status: 'error', error: err.message || 'An unexpected error occurred.' });
+  }
+}
 // ── HTML routes ───────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => {
@@ -188,7 +377,6 @@ app.post('/analyze', (req, res) => {
   console.log('[Analyze] POST /analyze received, body:', req.body);
   const { docUrl } = req.body;
 
-
   if (!docUrl) {
     console.log('[Analyze] Error: Missing Google Doc URL');
     return res.status(400).json({ error: 'Missing Google Doc URL.' });
@@ -199,163 +387,20 @@ app.post('/analyze', (req, res) => {
 
   const jobId = Date.now().toString();
   const jobDir = path.join(ROOT, 'output', jobId);
-
   fs.mkdirSync(jobDir, { recursive: true });
 
-  jobs[jobId] = { status: 'running', step: 'Extracting revision history from Google Docs...' };
-  currentJobId = jobId;
+  jobs[jobId] = {
+    status: 'queued',
+    step: 'Waiting in queue...',
+    progress: null,
+    meta: { cleanDocId, jobDir },
+  };
+  queue.push(jobId);
+  upsertJobRow(jobId, { doc_id: cleanDocId, status: 'queued', step: 'Waiting in queue...' });
 
-  res.json({ status: 'started', jobId });
+  res.json({ status: 'started', jobId, queuePosition: queuePosition(jobId) });
 
-  (async () => {
-    console.log(`[Pipeline] Job ${jobId} starting...`);
-    try {
-      jobs[jobId].progress = null;
-      // STEP 1: analysis.js 
-      console.log(`[Pipeline] Job ${jobId} - Starting STEP 1: analysis.js`);
-      await runScript('node', [
-        path.join(SCRIPTS, 'analysis.js'),
-        cleanDocId,
-        '--output', path.join(jobDir, 'report'),
-      ], (msg) => {
-        if (msg.progress) jobs[jobId].progress = msg.progress;
-        if (msg.text && msg.text.includes('Extraction complete')) {
-          jobs[jobId].step = 'Running AI analysis on text...';
-          jobs[jobId].progress = null;
-        }
-      }, jobId);
-      console.log(`[Pipeline] Job ${jobId} - STEP 1 complete`);
-      // STEP 2: charts.py 
-      console.log(`[Pipeline] Job ${jobId} - Starting STEP 2: charts.py`);
-      jobs[jobId].step = 'Generating contribution charts...';
-      jobs[jobId].progress = null;
-      await runScript('python', [
-        'charts.py',
-        '--summary',   path.join(jobDir, 'report-summary.csv'),
-        '--revisions', path.join(jobDir, 'report-revisions.csv'),
-        '--output',    jobDir,
-      ], (msg) => {
-        if (msg.progress) jobs[jobId].progress = msg.progress;
-      }, jobId);
-      console.log(`[Pipeline] Job ${jobId} - STEP 2 complete`);
-
-      // STEP 3: report.py 
-      console.log(`[Pipeline] Job ${jobId} - Starting STEP 3: report.py`);
-      jobs[jobId].step = 'Compiling PDF report...';
-      jobs[jobId].progress = null;
-      const reportJsonPath = path.join(jobDir, 'report.json');
-      let documentName = null;
-      if (fs.existsSync(reportJsonPath)) {
-        try {
-          const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
-          documentName = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
-        } catch (err) {
-          console.warn('[Pipeline] Could not read report.json for PDF metadata:', err.message);
-        }
-      }
-
-      const reportArgs = [
-        'report.py',
-        '--charts',  `"${jobDir}"`,
-        '--output',  `"${path.join(jobDir, 'report.pdf')}"`,
-        '--title',   '"Academic Contribution & Plagiarism Report"',
-      ];
-      const analysisFile = path.join(jobDir, 'report-ai-analysis.txt');
-      if (fs.existsSync(analysisFile)) {
-        reportArgs.push('--analysis', `"${analysisFile}"`);
-      }
-      if (documentName) {
-        reportArgs.push('--document-name', `"${documentName}"`);
-      }
-      await runScript('python', reportArgs, (msg) => {
-        if (msg.progress) jobs[jobId].progress = msg.progress;
-      }, jobId);
-      console.log(`[Pipeline] Job ${jobId} - STEP 3 complete`);
-
-      // STEP 4: Upload files to supabase
-      try {
-        const reportJsonPath = path.join(jobDir, 'report.json');
-        console.log('[History]: report.json exists:', fs.existsSync(reportJsonPath));
-        console.log('[History]: jobDir:', jobDir);
-        const reportJson = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
-        console.log('[History]: report.json parsed successfully');
-        console.log('[History]: generatedAt:', reportJson.generatedAt);
-        console.log('[History]: fileId:', reportJson.fileId);
-        console.log('[History]: userSummary type:', typeof reportJson.userSummary);
-        console.log('[History]: Key prefix:', supabaseKey?.slice(0, 20));
-
-        const { data: bucketData, error: bucketErr } = await supabase.storage.getBucket('report');
-        console.log('[History]: Bucket check:', JSON.stringify(bucketData), JSON.stringify(bucketErr));
-
-        const timestamp = reportJson.generatedAt.replace(/[^0-9]/g, '-').slice(0, 10);
-        const base = `${jobId}`;
-
-        const filesToUpload = [
-          { local: path.join(jobDir, 'report.pdf'),                              storage: `${base}/Contribution_Report_${timestamp}.pdf`, contentType: 'application/pdf' },
-          { local: path.join(jobDir, 'report-summary.csv'),                      storage: `${base}/report-summary.csv`,                   contentType: 'text/csv' },
-          { local: path.join(jobDir, 'report-revisions.csv'),                    storage: `${base}/report-revisions.csv`,                 contentType: 'text/csv' },
-          { local: path.join(jobDir, 'report-ai-analysis.txt'),                  storage: `${base}/report-ai-analysis.txt`,               contentType: 'text/plain' },
-          { local: path.join(jobDir, 'report-user-text.txt'),                    storage: `${base}/report-user-text.txt`,                 contentType: 'text/plain' },
-          { local: path.join(jobDir, 'report.json'),                             storage: `${base}/report.json`,                          contentType: 'application/json' },
-          { local: path.join(jobDir, 'contribution-pie.png'),                    storage: `${base}/contribution-pie.png`,                 contentType: 'image/png' },
-          { local: path.join(jobDir, 'contribution-line-networds.png'),          storage: `${base}/contribution-line-networds.png`,       contentType: 'image/png' },
-          { local: path.join(jobDir, 'contribution-line-revision-networds.png'), storage: `${base}/contribution-line-revision-networds.png`, contentType: 'image/png' },
-          
-        ];
-
-        for (const f of filesToUpload) {
-          if (!fs.existsSync(f.local)) {
-            console.log('[History]: Skipping missing file:', f.local);
-            continue;
-          }
-          console.log('[History]: Uploading', f.storage);
-          const buffer = fs.readFileSync(f.local);
-          const { error: uploadErr } = await supabase.storage
-            .from('report')
-            .upload(f.storage, buffer, { contentType: f.contentType, upsert: true });
-          if (uploadErr) {
-            console.error('[History]: Upload failed for', f.storage, ':', uploadErr.message);
-            throw uploadErr;
-          }
-          console.log('[History]: Uploaded', f.storage);
-        }
-
-        console.log('[History]: All files uploaded, inserting DB row...');
-        const documentTitle = reportJson.documentTitle || reportJson.fileId || 'Untitled document';
-        const { error: dbErr } = await supabase.from('history').upsert({
-          id: jobId,
-          doc_id: reportJson.fileId,
-          title: documentTitle,
-          generated_at: reportJson.generatedAt,
-          user_summary: JSON.stringify(reportJson.userSummary),
-          pdf_path:           `${base}/Contribution_Report_${timestamp}.pdf`,
-          csv_summary_path:   `${base}/report-summary.csv`,
-          csv_revisions_path: `${base}/report-revisions.csv`,
-          ai_analysis_path:   `${base}/report-ai-analysis.txt`,
-          user_text_path:     `${base}/report-user-text.txt`,
-          json_path:          `${base}/report.json`,
-        });
-        if (dbErr) {
-          console.error('[History]: DB upsert failed:', dbErr.message);
-          throw dbErr;
-        }
-        console.log('[History]: Job', jobId, 'saved to Supabase successfully.');
-      } catch (histErr) {
-        console.error('[History Error] Job', jobId, ':', histErr.message);
-      }
-
-      // Mark job as done
-      jobs[jobId].status = 'done';
-      jobs[jobId].step = 'Complete';
-      console.log(`[Pipeline]: Job ${jobId} complete.`);
-
-    } catch (err) {
-      console.error(`[Pipeline Error] Job ${jobId}: ${err.message}`);
-      console.error(`[Pipeline Error] Stack:`, err.stack);
-      jobs[jobId].status = 'error';
-      jobs[jobId].error = err.message || 'An unexpected error occurred.';
-    }
-  })();
+  processQueue();
 });
 
 // GET /history - fetch all past analyses from Supabase
@@ -459,35 +504,75 @@ app.get('/history_page.html', (req, res) => {
 // POST /cancel - cancel currently running jobs (if any)
 app.post('/cancel', (req, res) => {
   const jobId = req.query.jobId || currentJobId;
-  if (!jobId || !jobs[jobId] || jobs[jobId].status !== 'running') {
+  if (!jobId || !jobs[jobId]) {
     return res.json({ message: 'No running job to cancel.' });
   }
 
-  const proc = jobs[jobId].proc;
+  const job = jobs[jobId];
+
+  if (job.status === 'queued') {
+    const idx = queue.indexOf(jobId);
+    if (idx !== -1) queue.splice(idx, 1);
+    updateJob(jobId, { status: 'cancelled', step: 'Cancelled by user.' });
+    return res.json({ message: 'Job cancelled.' });
+  }
+
+  if (job.status !== 'running') {
+    return res.json({ message: 'No running job to cancel.' });
+  }
+
+  const proc = job.proc;
   if (proc) {
     try {
-      // Kill entire process tree by PID on Windows
-      spawn('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { shell: true });
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { shell: true });
+      } else {
+        process.kill(-proc.pid, 'SIGKILL'); // negative pid kills the whole process group
+      }
     } catch (e) {
-      console.error('taskkill failed:', e.message);
+      console.error('Failed to kill process:', e.message);
     }
     jobs[jobId].proc = null;
   }
 
-  jobs[jobId].status = 'cancelled';
-  jobs[jobId].step = 'Cancelled by user.';
+  updateJob(jobId, { status: 'cancelled', step: 'Cancelled by user.' });
   console.log(`[Pipeline]: Job ${jobId} cancelled.`);
-
   res.json({ message: 'Job cancelled.' });
 });
 
 // GET /status
 
-app.get('/status', (req, res) => {
+app.get('/status', async (req, res) => {
   const jobId = req.query.jobId || currentJobId;
-  if (!jobId || !jobs[jobId]) return res.json({ status: 'idle' });
-  const job = jobs[jobId];
-  res.json({ status: job.status, step: job.step, progress: job.progress, error: job.error });
+  if (!jobId) return res.json({ status: 'idle' });
+
+  if (jobs[jobId]) {
+    const job = jobs[jobId];
+    return res.json({
+      status: job.status,
+      step: job.step,
+      progress: job.progress,
+      error: job.error,
+      queuePosition: job.status === 'queued' ? queuePosition(jobId) : null,
+    });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('job_queue')
+      .select('status, step, progress_current, progress_total, error')
+      .eq('id', jobId)
+      .single();
+    if (error || !data) return res.json({ status: 'idle' });
+    res.json({
+      status: data.status,
+      step: data.step,
+      progress: data.progress_current != null ? { current: data.progress_current, total: data.progress_total } : null,
+      error: data.error,
+    });
+  } catch {
+    res.json({ status: 'idle' });
+  }
 });
 
 // GET /download 
@@ -515,4 +600,5 @@ app.listen(PORT, () => {
   console.log(`Serving HTML from: ${STATIC}`);
   console.log(`Static folder exists: ${fs.existsSync(STATIC)}`);
   console.log(`front_page.html exists: ${fs.existsSync(path.join(STATIC, 'front_page.html'))}`);
+  restoreQueueOnBoot();
 });

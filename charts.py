@@ -48,15 +48,18 @@ def load_csv(path):
 
 def format_date_axis(ax, min_date, max_date):
     span = max_date - min_date
-    if span <= pd.Timedelta(days=7):
+    if span < pd.Timedelta(days=7):
         locator = mdates.DayLocator(interval=1)
-        formatter = mdates.DateFormatter("%d %b")
-    elif span <= pd.Timedelta(days=365):
+        formatter = mdates.DateFormatter("%d-%b")
+    elif span <= pd.Timedelta(days=14):
         locator = mdates.WeekdayLocator(byweekday=mdates.MO, interval=1)
-        formatter = mdates.DateFormatter("%d %b")
+        formatter = mdates.DateFormatter("%d-%b")
+    elif span <= pd.Timedelta(days=182):
+        locator = mdates.WeekdayLocator(byweekday=mdates.MO, interval=1)
+        formatter = mdates.DateFormatter("%d-%b")
     else:
         locator = mdates.MonthLocator(interval=1)
-        formatter = mdates.DateFormatter("%b %Y")
+        formatter = mdates.DateFormatter("%b-%Y")
 
     ax.xaxis.set_major_locator(locator)
     ax.xaxis.set_major_formatter(formatter)
@@ -182,6 +185,8 @@ def plot_line(revisions_df, col, title, ylabel, output_path, user_color_map):
     # Add small padding so edge labels aren't clipped, then force first/last date ticks
     ax.set_xlim(min_date - pd.Timedelta(hours=12), max_date + pd.Timedelta(hours=12))
     format_date_axis(ax, min_date, max_date)
+    ax.set_axisbelow(True)
+    ax.grid(axis="x", linestyle=":", color="0.8", alpha=0.5)
 
     plt.xticks(rotation=45, ha="right")
     ax.set_xlabel("Date (SGT)", labelpad=8)
@@ -195,7 +200,6 @@ def plot_line(revisions_df, col, title, ylabel, output_path, user_color_map):
     else:
         ax.legend(loc="upper left", fontsize=9)
     
-    ax.grid(False)
     sns.despine()
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
@@ -252,6 +256,8 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path, user_co
 
     ax.set_xlim(-0.5, max_rev + 0.5)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.set_axisbelow(True)
+    ax.grid(axis="x", linestyle=":", color="0.8", alpha=0.5)
     ax.set_xlabel("Revision Number", labelpad=8)
     ax.set_ylabel(ylabel, labelpad=8)
     ax.set_title(title, pad=16)
@@ -263,7 +269,6 @@ def plot_line_by_revision(revisions_df, col, title, ylabel, output_path, user_co
     else:
         ax.legend(loc="upper left", fontsize=9)
 
-    ax.grid(False)
     sns.despine()
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
